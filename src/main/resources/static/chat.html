@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AD Agent 对话</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      margin: 0;
+      background: #1a1b26;
+      color: #c0caf5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: row;
+    }
+    .sidebar {
+      width: 220px;
+      min-width: 220px;
+      border-right: 1px solid #3b4261;
+      display: flex;
+      flex-direction: column;
+      background: #16161e;
+    }
+    .sidebar-title { padding: 12px; font-size: 12px; color: #565f89; }
+    .sidebar .btn-new {
+      margin: 8px 12px;
+      padding: 8px 12px;
+      border: 1px solid #7aa2f7;
+      border-radius: 6px;
+      background: transparent;
+      color: #7aa2f7;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .sidebar .btn-new:hover { background: #2d334d; }
+    .session-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 8px 8px;
+    }
+    .session-item {
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #a9b1d6;
+      margin-bottom: 4px;
+      word-break: break-all;
+    }
+    .session-item:hover { background: #24283b; color: #c0caf5; }
+    .session-item.active { background: #2d334d; color: #7aa2f7; }
+    .session-item .time { font-size: 11px; color: #565f89; margin-top: 2px; }
+    .session-item .row { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+    .session-item .row span:first-child { flex: 1; min-width: 0; }
+    .session-item .btn-del {
+      flex-shrink: 0;
+      padding: 2px 6px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: #565f89;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .session-item .btn-del:hover { background: #f7768e; color: #1a1b26; }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #3b4261;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .header span { color: #7aa2f7; }
+    .header label { display: flex; align-items: center; gap: 6px; }
+    .header input#userId {
+      width: 120px;
+      padding: 4px 8px;
+      border: 1px solid #3b4261;
+      border-radius: 4px;
+      background: #24283b;
+      color: #c0caf5;
+      font-size: 13px;
+    }
+    .chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .msg {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: #7aa2f7;
+      color: #1a1b26;
+    }
+    .msg.assistant {
+      align-self: flex-start;
+      background: #24283b;
+      border: 1px solid #3b4261;
+    }
+    .msg.assistant table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 13px; }
+    .msg.assistant th, .msg.assistant td { border: 1px solid #3b4261; padding: 4px 8px; text-align: left; }
+    .msg.assistant th { background: #16161e; color: #7aa2f7; font-weight: 600; }
+    .msg.assistant tr:nth-child(even) { background: rgba(0,0,0,0.15); }
+    .msg.assistant h1, .msg.assistant h2, .msg.assistant h3 { margin: 6px 0 4px; color: #7aa2f7; font-weight: 600; }
+    .msg.assistant h3 { font-size: 14px; }
+    .msg.assistant ul, .msg.assistant ol { margin: 4px 0; padding-left: 18px; }
+    .msg.assistant li { margin: 1px 0; }
+    .msg.assistant strong { color: #9ece6a; font-weight: 600; }
+    .msg.assistant p { margin: 2px 0; line-height: 1.4; }
+    .msg.assistant p:first-child { margin-top: 0; }
+    .msg.assistant p:last-child { margin-bottom: 0; }
+    .msg.assistant code { background: #16161e; padding: 2px 4px; border-radius: 4px; font-size: 12px; }
+    .msg.assistant hr { border: none; border-top: 1px solid #3b4261; margin: 6px 0; }
+    .thinking {
+      align-self: flex-start;
+      max-width: 85%;
+      margin-bottom: 4px;
+    }
+    .thinking summary {
+      cursor: pointer;
+      padding: 8px 12px;
+      background: #16161e;
+      border: 1px solid #3b4261;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #9ece6a;
+    }
+    .thinking .body {
+      padding: 10px 12px;
+      background: #16161e;
+      border: 1px solid #3b4261;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      font-size: 12px;
+      color: #a9b1d6;
+      white-space: pre-wrap;
+    }
+    .input-row {
+      padding: 12px 16px;
+      border-top: 1px solid #3b4261;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    #input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #3b4261;
+      border-radius: 8px;
+      background: #24283b;
+      color: #c0caf5;
+      font-size: 14px;
+    }
+    #input:focus {
+      outline: none;
+      border-color: #7aa2f7;
+    }
+    #send {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #7aa2f7;
+      color: #1a1b26;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #send:hover { background: #89b4fa; }
+    #send:disabled { opacity: 0.5; cursor: not-allowed; }
+    .cursor { display: inline-block; width: 2px; height: 1em; background: #7aa2f7; animation: blink 0.8s step-end infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-title">会话列表（需填写用户 ID）</div>
+    <button type="button" class="btn-new" id="btnNewSession">新会话</button>
+    <div class="session-list" id="sessionList"></div>
+  </aside>
+  <div class="main">
+    <div class="header">
+      <span>AD Agent</span>
+      <label>用户 ID: <input type="text" id="userId" placeholder="选填，如 u1" autocomplete="off"></label>
+      <span>会话: <span id="sessionId">-</span></span>
+    </div>
+    <div class="chat" id="chat"></div>
+    <div class="input-row">
+      <input type="text" id="input" placeholder="输入消息，例如：加一个投放计划" autocomplete="off">
+      <button type="button" id="send">发送</button>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/ad-agent';
+    const STORAGE_USER = 'adAgentUserId';
+    const STORAGE_SESSION = 'adAgentSessionId';
+    let sessionId = '';
+
+    const chatEl = document.getElementById('chat');
+    const userIdEl = document.getElementById('userId');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+    const sessionIdEl = document.getElementById('sessionId');
+    const sessionListEl = document.getElementById('sessionList');
+    const btnNewSession = document.getElementById('btnNewSession');
+    let streamingBuffer = '';
+
+    if (typeof marked !== 'undefined') {
+      marked.setOptions({ gfm: true, breaks: true });
+    }
+    function renderMarkdown(text) {
+      if (!text || !text.trim()) return '';
+      if (typeof marked !== 'undefined') return marked.parse(text);
+      return text.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+    }
+
+    function saveUserId(uid) {
+      try { if (uid) localStorage.setItem(STORAGE_USER, uid); } catch (e) {}
+    }
+    function loadUserId() {
+      try { return localStorage.getItem(STORAGE_USER) || ''; } catch (e) { return ''; }
+    }
+    function saveSessionId(sid) {
+      try { if (sid) localStorage.setItem(STORAGE_SESSION, sid); } catch (e) {} 
+    }
+
+    async function ensureSession() {
+      if (sessionId) return sessionId;
+      const uid = getUserId();
+      const body = uid ? JSON.stringify({ userId: uid }) : '{}';
+      const res = await fetch(API + '/session/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      const data = await res.json();
+      sessionId = data.sessionId || '';
+      sessionIdEl.textContent = sessionId ? sessionId.slice(0, 8) + '…' : '-';
+      if (sessionId && uid) saveSessionId(sessionId);
+      if (uid) refreshSessionList();
+      return sessionId;
+    }
+
+    function getUserId() {
+      return (userIdEl && userIdEl.value) ? userIdEl.value.trim() : '';
+    }
+
+    async function fetchSessions(uid) {
+      if (!uid) return [];
+      const res = await fetch(API + '/sessions?userId=' + encodeURIComponent(uid));
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.sessions || [];
+    }
+
+    function renderSessionList(sessions, activeId) {
+      sessionListEl.innerHTML = '';
+      (sessions || []).forEach(function (s) {
+        const div = document.createElement('div');
+        div.className = 'session-item' + (s.sessionId === activeId ? ' active' : '');
+        div.dataset.sessionId = s.sessionId;
+        div.innerHTML = '<div class="row"><span>' + (s.sessionId ? s.sessionId.slice(0, 8) + '…' : '-') + '</span><button type="button" class="btn-del" title="删除">×</button></div><div class="time">' + (s.updatedAt || s.createdAt || '') + '</div>';
+        div.addEventListener('click', function (e) {
+          if (e.target.classList.contains('btn-del')) return;
+          selectSession(s.sessionId);
+        });
+        div.querySelector('.btn-del').addEventListener('click', function (e) {
+          e.stopPropagation();
+          deleteSession(s.sessionId);
+        });
+        sessionListEl.appendChild(div);
+      });
+    }
+
+    async function deleteSession(sid) {
+      if (!sid) return;
+      try {
+        const res = await fetch(API + '/session?sessionId=' + encodeURIComponent(sid), { method: 'DELETE' });
+        const data = await res.json();
+        if (data.status === 'success') {
+          if (sessionId === sid) {
+            startNewSession();
+          } else {
+            refreshSessionList();
+          }
+        }
+      } catch (e) {
+        console.error('删除会话失败', e);
+      }
+    }
+
+    async function refreshSessionList() {
+      const uid = getUserId();
+      const sessions = await fetchSessions(uid);
+      renderSessionList(sessions, sessionId);
+    }
+
+    async function loadHistory(sid) {
+      if (!sid) return;
+      const res = await fetch(API + '/session/history?sessionId=' + encodeURIComponent(sid));
+      if (!res.ok) return;
+      const data = await res.json();
+      const history = data.history || [];
+      chatEl.innerHTML = '';
+      history.forEach(function (m) {
+        const div = document.createElement('div');
+        div.className = 'msg ' + (m.role === 'user' ? 'user' : 'assistant');
+        if (m.role === 'assistant' && (m.content || '').trim()) {
+          div.innerHTML = renderMarkdown(m.content);
+        } else {
+          div.textContent = m.content || '';
+        }
+        chatEl.appendChild(div);
+      });
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    function selectSession(sid) {
+      sessionId = sid || '';
+      sessionIdEl.textContent = sessionId ? sessionId.slice(0, 8) + '…' : '-';
+      if (sessionId) saveSessionId(sessionId);
+      refreshSessionList();
+      loadHistory(sessionId);
+    }
+
+    function startNewSession() {
+      sessionId = '';
+      sessionIdEl.textContent = '-';
+      chatEl.innerHTML = '';
+      saveSessionId('');
+      refreshSessionList();
+    }
+
+    function appendUserMessage(text) {
+      const div = document.createElement('div');
+      div.className = 'msg user';
+      div.textContent = text;
+      chatEl.appendChild(div);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    function appendThinking(text) {
+      const wrap = document.createElement('div');
+      wrap.className = 'thinking';
+      wrap.innerHTML = '<details open><summary>思考过程</summary><div class="body"></div></details>';
+      const body = wrap.querySelector('.body');
+      body.textContent = text;
+      chatEl.appendChild(wrap);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    function appendAssistantChunk(chunk) {
+      let last = chatEl.querySelector('.msg.assistant.streaming');
+      if (!last) {
+        streamingBuffer = '';
+        last = document.createElement('div');
+        last.className = 'msg assistant streaming';
+        last.textContent = '';
+        chatEl.appendChild(last);
+      }
+      streamingBuffer += chunk || '';
+      last.textContent = streamingBuffer;
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    function finalizeAssistantMessage() {
+      const last = chatEl.querySelector('.msg.assistant.streaming');
+      if (last && streamingBuffer !== undefined) {
+        last.innerHTML = renderMarkdown(streamingBuffer);
+        last.classList.remove('streaming');
+        streamingBuffer = '';
+      }
+    }
+
+    function parseSSE(reader, onEvent) {
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let eventType = 'message';
+      let dataLines = [];
+      function flush() {
+        if (dataLines.length) {
+          onEvent(eventType, dataLines.join('\n'));
+          dataLines = [];
+        }
+      }
+      return reader.read().then(function next(chunk) {
+        if (chunk.done) { flush(); return; }
+        if (chunk.value)
+          buffer += decoder.decode(chunk.value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          if (line.startsWith('event:')) {
+            flush();
+            eventType = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            dataLines.push(line.slice(5).replace(/^ /, ''));
+          } else if (line === '') {
+            flush();
+          }
+        }
+        return reader.read().then(next);
+      });
+    }
+
+    async function send() {
+      const text = (inputEl.value || '').trim();
+      if (!text) return;
+      await ensureSession();
+      inputEl.value = '';
+      sendBtn.disabled = true;
+      appendUserMessage(text);
+
+      try {
+        const uid = getUserId();
+        const body = { sessionId, message: text };
+        if (uid) body.userId = uid;
+        const res = await fetch(API + '/stream-with-thinking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+          appendAssistantChunk('[请求失败: ' + res.status + ']');
+          return;
+        }
+        const reader = res.body.getReader();
+        await parseSSE(reader, (event, data) => {
+          if (event === 'thinking') appendThinking(data);
+          else if (event === 'content' && data) appendAssistantChunk(data);
+        });
+        finalizeAssistantMessage();
+      } catch (e) {
+        appendAssistantChunk('[错误: ' + e.message + ']');
+        finalizeAssistantMessage();
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    sendBtn.addEventListener('click', send);
+    inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+    function onUserIdChange() {
+      saveUserId(getUserId());
+      sessionId = '';
+      sessionIdEl.textContent = '-';
+      chatEl.innerHTML = '';
+      saveSessionId('');
+      refreshSessionList();
+    }
+    userIdEl.addEventListener('change', onUserIdChange);
+    userIdEl.addEventListener('blur', onUserIdChange);
+    btnNewSession.addEventListener('click', startNewSession);
+
+    (function onLoad() {
+      const savedUserId = loadUserId();
+      if (savedUserId && userIdEl) userIdEl.value = savedUserId;
+      const savedSessionId = (function () { try { return localStorage.getItem(STORAGE_SESSION) || ''; } catch (e) { return ''; } })();
+      refreshSessionList();
+      if (savedSessionId && getUserId()) {
+        sessionId = savedSessionId;
+        sessionIdEl.textContent = sessionId.slice(0, 8) + '…';
+        loadHistory(sessionId);
+      }
+    })();
+  </script>
+</body>
+</html>

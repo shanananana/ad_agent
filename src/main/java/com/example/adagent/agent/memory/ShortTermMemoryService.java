@@ -1,0 +1,77 @@
+package com.example.adagent.agent.memory;
+
+import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Service
+public class ShortTermMemoryService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ShortTermMemoryService.class);
+    private final Map<String, List<ChatMessage>> sessionMemories = new ConcurrentHashMap<>();
+    private static final int DEFAULT_MAX_MESSAGES = 10;
+
+    public static class ChatMessage {
+        private final String role;
+        private final String content;
+
+        public ChatMessage(String role, String content) {
+            this.role = role;
+            this.content = content;
+        }
+        public String getRole() { return role; }
+        public String getContent() { return content; }
+    }
+
+    public List<ChatMessage> getOrCreateMemory(String sessionId) {
+        return sessionMemories.computeIfAbsent(sessionId, id -> new ArrayList<>());
+    }
+
+    public void addMessage(String sessionId, String role, String content) {
+        List<ChatMessage> messages = getOrCreateMemory(sessionId);
+        messages.add(new ChatMessage(role, content));
+        while (messages.size() > DEFAULT_MAX_MESSAGES) {
+            messages.remove(0);
+        }
+    }
+
+    public List<ChatMessage> getMemory(String sessionId) {
+        return sessionMemories.getOrDefault(sessionId, new ArrayList<>());
+    }
+
+    /** 从持久化加载时覆盖该会话的消息列表（不触发追加） */
+    public void setMessages(String sessionId, List<ChatMessage> messages) {
+        if (sessionId == null) return;
+        if (messages == null || messages.isEmpty()) {
+            sessionMemories.remove(sessionId);
+            return;
+        }
+        sessionMemories.put(sessionId, new ArrayList<>(messages));
+    }
+
+    public void clearMemory(String sessionId) {
+        sessionMemories.remove(sessionId);
+    }
+
+    public String buildContext(String sessionId) {
+        List<ChatMessage> messages = getMemory(sessionId);
+        if (messages.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder("以下是之前的对话历史：\n\n");
+        for (ChatMessage msg : messages) {
+            if ("user".equals(msg.getRole())) {
+                sb.append("用户：").append(msg.getContent()).append("\n");
+            } else if ("assistant".equals(msg.getRole())) {
+                sb.append("助手：").append(msg.getContent()).append("\n\n");
+            }
+        }
+        sb.append("---\n\n");
+        return sb.toString();
+    }
+}

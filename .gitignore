@@ -1,0 +1,36 @@
+# 千问等 API 密钥，避免误提交
+**/application-secret.yml
+**/application-secret.properties
+
+# 用户数据与运行时数据，不提交
+data/chat/
+data/long_term_memory/
+data/base/users/
+data/performance/users/
+# 全局运行时数据（可选，若为测试数据可不提交）
+# data/base/campaigns.json
+# data/performance/performance.json
+# 若需忽略整个 data 目录，取消下一行注释
+# data/
+
+# Build
+target/
+build/
+*.class
+*.jar
+*.war
+*.log
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Maven
+pom.xml.tag
+.mvn/wrapper/maven-wrapper.jar
