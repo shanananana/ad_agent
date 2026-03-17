@@ -145,6 +145,42 @@ curl http://localhost:8081/api/ad-agent/data-path
 
 ---
 
+## 生产环境建议（中间件与存储）
+
+当前项目使用本地 JSON 文件存储，适用于学习与单机演示。上线生产时，建议按数据类型替换为以下中间件，便于扩展、多实例与运维。**不以 MySQL/PostgreSQL 为主**，长期记忆采用向量库并按**问题语义**注入。
+
+### 存储与中间件选型
+
+| 数据类型 | 当前实现 | 生产建议中间件 | 说明 |
+|----------|----------|----------------|------|
+| **短期记忆**（当前会话多轮） | 进程内存 `ShortTermMemoryService` | **Redis** | 按 `sessionId` 存消息列表，设 TTL（如 1～24 小时），多实例共享；会话结束或过期自动清理。 |
+| **长期记忆**（用户习惯/偏好） | 本地文件 `long_term_memory/{userId}.json` | **向量库**（Milvus / Qdrant / Pinecone / pgvector 等） | **按当前问题语义注入**：对每条记忆与当前 query 做 embedding，按向量相似度取 topK 注入上下文。按 `userId` 隔离，写入时落库并建向量索引，检索时用 query 向量查最相关记忆。 |
+| **基础数据**（计划/广告组/广告/素材） | 本地文件 `base/users/{userId}/campaigns.json` | 业务存储（自建或投放平台 API 同步） | 生产多从投放平台 API 同步或自建投放系统；具体存储由现有业务架构决定。 |
+| **效果数据**（展示、点击、消耗、ROI） | 本地文件 `performance/users/{userId}/performance.json` | **ClickHouse / Hive / BigQuery** 等数仓或 OLAP | 数据量大、按天/计划/维度聚合分析；可定时同步或通过 Kafka 入仓。 |
+| **聊天记录**（单会话消息 + 用户会话列表） | 本地文件 `chat/sessions/*.json`、`chat/users/{userId}/sessions.json` | 业务存储（自建） | 会话与消息的持久化由现有业务存储承担，支持分页、历史加载与审计。 |
+
+### 长期记忆：按问题语义注入
+
+长期记忆生产环境建议**向量库**，实现「按问题语义注入」：
+
+- 写入：用户习惯/偏好摘要写入时，对 `summary` 做 **embedding**，存入向量库（带 `user_id`、原文、时间等元数据）。
+- 检索：当前用户提问时，对 **query** 做 embedding，在向量库中按 `user_id` 过滤后做**相似度检索**，取 topK 条记忆注入 prompt。
+- 可选产品：**Milvus**、**Qdrant**、**Pinecone**，或 **PostgreSQL + pgvector**（向量与元数据同库）。
+
+不再采用「按时间取最近 N 条」的关系型方案，统一改为语义检索。
+
+### 小结
+
+| 中间件 | 用途 |
+|--------|------|
+| **Redis** | 短期记忆（会话级）、可选：限流、会话状态、审批单缓存等。 |
+| **向量库** | 长期记忆：按问题语义检索并注入，不做按时间最近 N 条。 |
+| **ClickHouse / 数仓** | 效果数据、报表与分析。 |
+
+按上述替换后，需将现有 `LongTermMemoryRepository`、`ShortTermMemoryService` 等改为对接 **Redis** 与 **向量库 SDK**，长期记忆检索逻辑改为「query embedding → 向量相似度 topK」后注入，接口保持不变即可逐步迁移。
+
+---
+
 ## 项目结构
 
 ```
