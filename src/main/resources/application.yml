@@ -14,13 +14,13 @@ spring:
     # 加载密钥配置（请将 application-secret.yml.example 复制为 application-secret.yml 并填入 api-key）
     include: secret
 
-  # Spring AI 通义千问：api-key 由 application-secret.yml 提供
+  # Spring AI 大模型（默认通义千问，可更换为 OpenAI / Azure / 智谱等）：api-key 由 application-secret.yml 提供
   ai:
     dashscope:
       base-url: https://dashscope.aliyuncs.com
       chat:
         options:
-          model: qwen-turbo-latest
+          model: qwen-turbo-latest   # 千问模型，可改为 qwen-plus 等；若换用其他 provider，请改用对应配置（如 spring.ai.openai.chat.options.model）
           temperature: 0.7
           top-p: 0.8
     tool:
