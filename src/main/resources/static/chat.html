@@ -189,9 +189,45 @@
     #send:disabled { opacity: 0.5; cursor: not-allowed; }
     .cursor { display: inline-block; width: 2px; height: 1em; background: #7aa2f7; animation: blink 0.8s step-end infinite; }
     @keyframes blink { 50% { opacity: 0; } }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-dialog {
+      background: #24283b;
+      border: 1px solid #3b4261;
+      border-radius: 12px;
+      padding: 20px 24px;
+      max-width: 360px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .modal-dialog p { margin: 0 0 16px; color: #c0caf5; font-size: 14px; line-height: 1.5; }
+    .modal-dialog .btn-ok {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #7aa2f7;
+      color: #1a1b26;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .modal-dialog .btn-ok:hover { background: #89b4fa; }
   </style>
 </head>
 <body>
+  <div class="modal-overlay" id="uidRequiredModal">
+    <div class="modal-dialog">
+      <p>请先填写用户 ID 后再发送消息（可随意填写，如 10000）。</p>
+      <button type="button" class="btn-ok" id="uidModalOk">知道了</button>
+    </div>
+  </div>
   <aside class="sidebar">
     <div class="sidebar-title">会话列表（需填写用户 ID）</div>
     <button type="button" class="btn-new" id="btnNewSession">新会话</button>
@@ -200,7 +236,7 @@
   <div class="main">
     <div class="header">
       <span>AD Agent</span>
-      <label>用户 ID: <input type="text" id="userId" placeholder="选填，如 u1" autocomplete="off"></label>
+      <label>用户 ID: <input type="text" id="userId" placeholder="必填，可随意填写如 10000" autocomplete="off"></label>
       <span>会话: <span id="sessionId">-</span></span>
     </div>
     <div class="chat" id="chat"></div>
@@ -420,9 +456,22 @@
       });
     }
 
+    function showUidRequiredModal() {
+      document.getElementById('uidRequiredModal').classList.add('show');
+      if (userIdEl) userIdEl.focus();
+    }
+    function hideUidRequiredModal() {
+      document.getElementById('uidRequiredModal').classList.remove('show');
+      if (userIdEl) userIdEl.focus();
+    }
+
     async function send() {
       const text = (inputEl.value || '').trim();
       if (!text) return;
+      if (!getUserId() || !getUserId().trim()) {
+        showUidRequiredModal();
+        return;
+      }
       await ensureSession();
       inputEl.value = '';
       sendBtn.disabled = true;
@@ -468,6 +517,10 @@
     userIdEl.addEventListener('change', onUserIdChange);
     userIdEl.addEventListener('blur', onUserIdChange);
     btnNewSession.addEventListener('click', startNewSession);
+    document.getElementById('uidModalOk').addEventListener('click', hideUidRequiredModal);
+    document.getElementById('uidRequiredModal').addEventListener('click', function (e) {
+      if (e.target === document.getElementById('uidRequiredModal')) hideUidRequiredModal();
+    });
 
     (function onLoad() {
       const savedUserId = loadUserId();

@@ -1,3 +1,6 @@
+# 本地待办，不提交
+todolist.md
+
 # 千问等 API 密钥，避免误提交
 **/application-secret.yml
 **/application-secret.properties
