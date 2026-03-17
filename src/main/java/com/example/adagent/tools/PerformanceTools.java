@@ -60,7 +60,27 @@ public class PerformanceTools {
                     && r.getDate().compareTo(end) <= 0).collect(Collectors.toList());
 
             if (list.isEmpty()) {
-                return "在给定筛选条件下暂无效果数据。";
+                List<PerformanceData.PerformanceRow> allData = data.getData();
+                if (allData != null && !allData.isEmpty()) {
+                    performanceDataRepository.generateAllAndOverwrite(userId);
+                    data = performanceDataRepository.loadPerformance(userId);
+                    list = data.getData() != null ? data.getData() : List.of();
+                    if (campaignId != null && !campaignId.trim().isEmpty()) {
+                        list = list.stream().filter(r -> campaignId.trim().equals(r.getCampaignId())).collect(Collectors.toList());
+                    }
+                    if (channel != null && !channel.trim().isEmpty()) {
+                        list = list.stream().filter(r -> channel.trim().equalsIgnoreCase(r.getChannel())).collect(Collectors.toList());
+                    }
+                    if (ageRange != null && !ageRange.trim().isEmpty()) {
+                        list = list.stream().filter(r -> ageRange.trim().equals(r.getAgeRange())).collect(Collectors.toList());
+                    }
+                    list = list.stream().filter(r -> r.getDate() != null
+                            && r.getDate().compareTo(start) >= 0
+                            && r.getDate().compareTo(end) <= 0).collect(Collectors.toList());
+                }
+                if (list.isEmpty()) {
+                    return "在给定筛选条件下暂无效果数据。";
+                }
             }
 
             long impressions = list.stream().mapToLong(PerformanceData.PerformanceRow::getImpressions).sum();
