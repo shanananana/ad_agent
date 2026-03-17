@@ -7,9 +7,9 @@ data/chat/
 data/long_term_memory/
 data/base/users/
 data/performance/users/
-# 全局运行时数据（可选，若为测试数据可不提交）
-# data/base/campaigns.json
-# data/performance/performance.json
+# 全局运行时数据（效果数据、基础数据均为运行时生成，不提交）
+data/base/campaigns.json
+data/performance/performance.json
 # 若需忽略整个 data 目录，取消下一行注释
 # data/
 
