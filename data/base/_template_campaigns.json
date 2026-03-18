@@ -6,8 +6,8 @@
     "name" : "新专辑《夏夜》全渠道推广",
     "status" : "ACTIVE",
     "dailyBudget" : 3000.0,
-    "startDate" : "2025-03-01",
-    "endDate" : "2025-04-30",
+    "startDate" : "2026-03-01",
+    "endDate" : "2026-04-30",
     "adGroups" : [ {
       "id" : "ag1",
       "name" : "专辑主打歌-信息流",
@@ -64,8 +64,8 @@
     "name" : "专辑首发日冲刺",
     "status" : "ACTIVE",
     "dailyBudget" : 15000.0,
-    "startDate" : "2025-03-15",
-    "endDate" : "2025-03-25",
+    "startDate" : "2026-03-15",
+    "endDate" : "2026-03-25",
     "adGroups" : [ {
       "id" : "ag3",
       "name" : "首发日-多创意轮播",
@@ -100,8 +100,8 @@
     "name" : "专辑预热-站内拉新",
     "status" : "ACTIVE",
     "dailyBudget" : 2000.0,
-    "startDate" : "2025-02-20",
-    "endDate" : "2025-03-31",
+    "startDate" : "2026-02-20",
+    "endDate" : "2026-03-31",
     "adGroups" : [ {
       "id" : "ag4",
       "name" : "预热-18-24岁兴趣定向",
