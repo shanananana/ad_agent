@@ -39,12 +39,22 @@ public class AdAgentOrchestrator {
     public String execute(String sessionId, String userId, String userInput) {
         logger.info("【AD Agent编排器】会话: {}, 用户: {}, 输入: {}", sessionId, userId, userInput);
         try {
-            IntentRecognitionService.IntentResult intentResult = intentRecognitionService.recognizeIntent(userInput);
+            String longTermContext = memoryService.getLongTermContext(userId, userInput);
+            String shortTermContext = memoryService.getShortTermContext(sessionId);
+            IntentRecognitionService.IntentResult intentResult = intentRecognitionService.recognizeIntent(userInput, longTermContext, shortTermContext);
             EntityExtractionService.EntityResult entityResult = entityExtractionService.extractEntities(userInput);
             logger.info("【AD Agent编排器】感知 - 意图: {}, 实体: {}", intentResult, entityResult);
 
-            String shortTermContext = memoryService.getShortTermContext(sessionId);
-            String longTermContext = memoryService.getLongTermContext(userId, userInput);
+            if (isAddCampaignClarification(intentResult)) {
+                String msg = intentResult.getSuggestedClarificationMessage();
+                if (msg != null && !msg.isBlank()) {
+                    memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
+                    memoryService.addToShortTermMemory(sessionId, "assistant", msg, userId);
+                    logger.info("【AD Agent编排器】加计划追问，不调用工具");
+                    return msg;
+                }
+            }
+
             String enhancedPrompt = buildEnhancedPrompt(sessionId, userId, userInput, shortTermContext, longTermContext, intentResult, entityResult);
 
             boolean needsTool = intentResult.isNeedsTool();
@@ -64,13 +74,29 @@ public class AdAgentOrchestrator {
         }
     }
 
+    /** 加计划且需要追问（用户未明确是否拆分，由意图层产出追问话术） */
+    private boolean isAddCampaignClarification(IntentRecognitionService.IntentResult intentResult) {
+        return "INTENT_ADD_CAMPAIGN".equals(intentResult.getIntentType())
+                && intentResult.isNeedClarification()
+                && intentResult.getSuggestedClarificationMessage() != null
+                && !intentResult.getSuggestedClarificationMessage().isBlank();
+    }
+
     public Flux<String> executeStream(String sessionId, String userId, String userInput) {
         logger.info("【AD Agent编排器】流式 会话: {}, 用户: {}, 输入: {}", sessionId, userId, userInput);
         try {
-            IntentRecognitionService.IntentResult intentResult = intentRecognitionService.recognizeIntent(userInput);
-            EntityExtractionService.EntityResult entityResult = entityExtractionService.extractEntities(userInput);
-            String shortTermContext = memoryService.getShortTermContext(sessionId);
             String longTermContext = memoryService.getLongTermContext(userId, userInput);
+            String shortTermContext = memoryService.getShortTermContext(sessionId);
+            IntentRecognitionService.IntentResult intentResult = intentRecognitionService.recognizeIntent(userInput, longTermContext, shortTermContext);
+            EntityExtractionService.EntityResult entityResult = entityExtractionService.extractEntities(userInput);
+            if (isAddCampaignClarification(intentResult)) {
+                String msg = intentResult.getSuggestedClarificationMessage();
+                if (msg != null && !msg.isBlank()) {
+                    memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
+                    memoryService.addToShortTermMemory(sessionId, "assistant", msg, userId);
+                    return Flux.just(msg);
+                }
+            }
             String enhancedPrompt = buildEnhancedPrompt(sessionId, userId, userInput, shortTermContext, longTermContext, intentResult, entityResult);
             StringBuilder fullContent = new StringBuilder();
             return toolExecutionService.executeWithToolsStream(enhancedPrompt)
@@ -91,10 +117,18 @@ public class AdAgentOrchestrator {
     public Flux<StreamEvent> executeStreamWithThinking(String sessionId, String userId, String userInput) {
         logger.info("【AD Agent编排器】流式(含思考) 会话: {}, 用户: {}, 输入: {}", sessionId, userId, userInput);
         try {
-            IntentRecognitionService.IntentResult intentResult = intentRecognitionService.recognizeIntent(userInput);
-            EntityExtractionService.EntityResult entityResult = entityExtractionService.extractEntities(userInput);
-            String shortTermContext = memoryService.getShortTermContext(sessionId);
             String longTermContext = memoryService.getLongTermContext(userId, userInput);
+            String shortTermContext = memoryService.getShortTermContext(sessionId);
+            IntentRecognitionService.IntentResult intentResult = intentRecognitionService.recognizeIntent(userInput, longTermContext, shortTermContext);
+            EntityExtractionService.EntityResult entityResult = entityExtractionService.extractEntities(userInput);
+            if (isAddCampaignClarification(intentResult)) {
+                String msg = intentResult.getSuggestedClarificationMessage();
+                if (msg != null && !msg.isBlank()) {
+                    memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
+                    memoryService.addToShortTermMemory(sessionId, "assistant", msg, userId);
+                    return Flux.just(StreamEvent.content(msg));
+                }
+            }
             String enhancedPrompt = buildEnhancedPrompt(sessionId, userId, userInput, shortTermContext, longTermContext, intentResult, entityResult);
             boolean needsTool = intentResult.isNeedsTool();
             PlanningService.ExecutionPlan plan = planningService.createPlan(
