@@ -3,6 +3,7 @@ package com.example.adagent.config;
 import com.example.adagent.tools.BaseDataTools;
 import com.example.adagent.tools.CampaignMutationTools;
 import com.example.adagent.tools.PerformanceTools;
+import com.example.adagent.tools.UserPrivacyTools;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +19,9 @@ public class ChatClientConfig {
         - 查有哪些计划、计划列表、广告/素材列表、计划详情 → 调用 queryBaseData（可选传 campaignId）
         - 用户说加一个投放计划、新建计划、创建计划 → 调用 addCampaign（参数 name、dailyBudget 可选）
         - 改预算、暂停计划、启用计划、调整策略 → 调用 adjustStrategy（campaignId 必填，dailyBudget、status 可选）
+        - 用户明确要求清除长期记忆、删掉偏好习惯 → 调用 clearUserLongTermMemory（userId 必须与上下文中的当前用户 ID 一致；无用户 ID 时拒绝并说明）
+        - 用户明确要求清空/删除聊天记录、对话历史 → 调用 clearUserChatHistory（userId 同上；currentSessionId 传上下文中的当前会话 ID）
+        - 用户要求同时清除长期记忆与全部聊天记录 → 依次调用 clearUserLongTermMemory 与 clearUserChatHistory
         
         工作方式：
         1. 理解用户意图
@@ -38,9 +42,10 @@ public class ChatClientConfig {
             ChatClient.Builder chatClientBuilder,
             BaseDataTools baseDataTools,
             PerformanceTools performanceTools,
-            CampaignMutationTools campaignMutationTools) {
+            CampaignMutationTools campaignMutationTools,
+            UserPrivacyTools userPrivacyTools) {
         return chatClientBuilder
-                .defaultTools(baseDataTools, performanceTools, campaignMutationTools)
+                .defaultTools(baseDataTools, performanceTools, campaignMutationTools, userPrivacyTools)
                 .defaultSystem(DEFAULT_SYSTEM)
                 .build();
     }

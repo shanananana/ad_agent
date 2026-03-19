@@ -26,10 +26,10 @@ public class AdAgentController {
     }
 
     @PostMapping("/chat")
-    public Map<String, String> chat(@RequestBody Map<String, String> request) {
+    public Map<String, Object> chat(@RequestBody Map<String, String> request) {
         String userMessage = request.get("message");
         if (userMessage == null || userMessage.trim().isEmpty()) {
-            Map<String, String> err = new HashMap<>();
+            Map<String, Object> err = new HashMap<>();
             err.put("error", "消息不能为空");
             return err;
         }
@@ -43,10 +43,11 @@ public class AdAgentController {
         } else if (userId != null && !userId.trim().isEmpty()) {
             chatSessionService.bindUserToSession(sessionId, userId.trim());
         }
-        String response = chatSessionService.chat(sessionId, userMessage);
-        Map<String, String> result = new HashMap<>();
+        var turn = chatSessionService.chat(sessionId, userMessage);
+        Map<String, Object> result = new HashMap<>();
         result.put("sessionId", sessionId);
-        result.put("response", response);
+        result.put("response", turn.response());
+        result.put("suggestPageRefresh", turn.suggestPageRefresh());
         return result;
     }
 
@@ -68,11 +69,12 @@ public class AdAgentController {
         } else if (userId != null && !userId.trim().isEmpty()) {
             chatSessionService.bindUserToSession(sessionId, userId.trim());
         }
-        String response = chatSessionService.chat(sessionId, userMessage);
+        var turn = chatSessionService.chat(sessionId, userMessage);
         List<Map<String, String>> history = chatSessionService.getHistory(sessionId);
         Map<String, Object> result = new HashMap<>();
         result.put("sessionId", sessionId);
-        result.put("response", response);
+        result.put("response", turn.response());
+        result.put("suggestPageRefresh", turn.suggestPageRefresh());
         result.put("history", history);
         return result;
     }
@@ -144,7 +146,7 @@ public class AdAgentController {
                 .onErrorResume(e -> Flux.just(ServerSentEvent.builder("[错误: " + e.getMessage() + "]").build()));
     }
 
-    /** 流式对话并推送思考过程（SSE event: thinking / content） */
+    /** 流式对话并推送思考过程（SSE event: thinking / content；隐私清除成功时额外 event: client，data: {"reload":true}） */
     @PostMapping(value = "/stream-with-thinking", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> streamWithThinking(@RequestBody Map<String, String> request) {
         String message = request.get("message");

@@ -38,12 +38,15 @@ public class IntentRecognitionService {
             - 基础数据查询：有哪些计划、计划列表、广告列表、素材列表、计划详情（intentType 填 INTENT_BASE_DATA_QUERY）
             - 加投放计划：加一个计划、新建计划、创建计划（intentType 填 INTENT_ADD_CAMPAIGN）
             - 策略调整：改预算、暂停计划、启用计划、调高日预算（intentType 填 INTENT_STRATEGY_ADJUST）
+            - 清除长期记忆：删除跨会话偏好/习惯摘要、忘记我的投放习惯等（intentType 填 INTENT_CLEAR_LONG_TERM_MEMORY）
+            - 清除聊天记录：清空/删除对话历史、删掉所有聊天等（intentType 填 INTENT_CLEAR_CHAT_HISTORY）
+            - 同时清除长期记忆与全部聊天记录：全清空、隐私数据都删掉等（intentType 填 INTENT_CLEAR_ALL_USER_MEMORY）
             
             不需要工具（needsTool=false）：纯闲聊、概念解释等。intentType 填 INTENT_OTHER。
             
             用户输入: {userInput}
             
-            返回 JSON，包含 intentType（INTENT_PERFORMANCE_QUERY/INTENT_BASE_DATA_QUERY/INTENT_ADD_CAMPAIGN/INTENT_STRATEGY_ADJUST/INTENT_OTHER）、needsTool（true/false）。
+            返回 JSON，包含 intentType（INTENT_PERFORMANCE_QUERY/INTENT_BASE_DATA_QUERY/INTENT_ADD_CAMPAIGN/INTENT_STRATEGY_ADJUST/INTENT_CLEAR_LONG_TERM_MEMORY/INTENT_CLEAR_CHAT_HISTORY/INTENT_CLEAR_ALL_USER_MEMORY/INTENT_OTHER）、needsTool（true/false）。
             """);
         this.intentWithMemoryPromptTemplate = new PromptTemplate("""
             你正在为广告投放 Agent 做意图识别。用户可能：查投放效果、查计划/广告/素材列表、加一个投放计划、调整策略（改预算/暂停）等。
@@ -53,6 +56,9 @@ public class IntentRecognitionService {
             - 基础数据查询：intentType 填 INTENT_BASE_DATA_QUERY
             - 加投放计划：intentType 填 INTENT_ADD_CAMPAIGN
             - 策略调整：intentType 填 INTENT_STRATEGY_ADJUST
+            - 仅清除长期记忆（跨会话偏好/习惯文件）：intentType 填 INTENT_CLEAR_LONG_TERM_MEMORY
+            - 仅清除聊天记录（本地全部会话与对话文件）：intentType 填 INTENT_CLEAR_CHAT_HISTORY
+            - 长期记忆与聊天记录都要清除：intentType 填 INTENT_CLEAR_ALL_USER_MEMORY
             不需要工具（needsTool=false）：纯闲聊、概念解释等。intentType 填 INTENT_OTHER。
             
             结合【最近对话】识别简短确认：若存在【最近对话】，且用户当前输入是对上一轮助手提问的简短肯定（如「需要」「好的」「可以」「行」「创建」「确认」等），必须结合最近对话判断意图。例如：上一轮助手问「是否立即为您创建这个计划」「是否需要按某方式创建」等且用户表示肯定，则 intentType 填 INTENT_ADD_CAMPAIGN，needsTool 填 true；上一轮在问是否查询某计划效果等且用户肯定，则填对应查询类意图。不要仅因用户输入过短就判为 INTENT_OTHER。
@@ -175,6 +181,19 @@ public class IntentRecognitionService {
         }
         if (lower.contains("改预算") || lower.contains("暂停") || lower.contains("启用") || lower.contains("调整策略") || lower.contains("日预算")) {
             return new IntentResult("INTENT_STRATEGY_ADJUST", true, userInput);
+        }
+        boolean wantsClear = lower.contains("清除") || lower.contains("删除") || lower.contains("清空");
+        if (wantsClear && lower.contains("长期记忆") && (lower.contains("聊天") || lower.contains("对话") || lower.contains("聊天记录"))) {
+            return new IntentResult("INTENT_CLEAR_ALL_USER_MEMORY", true, userInput);
+        }
+        if (wantsClear && lower.contains("全部") && (lower.contains("记忆") || lower.contains("隐私") || lower.contains("数据"))) {
+            return new IntentResult("INTENT_CLEAR_ALL_USER_MEMORY", true, userInput);
+        }
+        if (wantsClear && (lower.contains("聊天") || lower.contains("对话") || lower.contains("聊天记录"))) {
+            return new IntentResult("INTENT_CLEAR_CHAT_HISTORY", true, userInput);
+        }
+        if (wantsClear && (lower.contains("长期记忆") || lower.contains("习惯记忆") || (lower.contains("偏好") && lower.contains("习惯")))) {
+            return new IntentResult("INTENT_CLEAR_LONG_TERM_MEMORY", true, userInput);
         }
         return new IntentResult("INTENT_OTHER", false, userInput);
     }

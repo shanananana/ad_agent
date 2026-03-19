@@ -23,6 +23,9 @@ public class ReActService {
         INTENT_TO_TOOLS.put("INTENT_BASE_DATA_QUERY", Arrays.asList("queryBaseData"));
         INTENT_TO_TOOLS.put("INTENT_ADD_CAMPAIGN", Arrays.asList("addCampaign"));
         INTENT_TO_TOOLS.put("INTENT_STRATEGY_ADJUST", Arrays.asList("adjustStrategy"));
+        INTENT_TO_TOOLS.put("INTENT_CLEAR_LONG_TERM_MEMORY", Arrays.asList("clearUserLongTermMemory"));
+        INTENT_TO_TOOLS.put("INTENT_CLEAR_CHAT_HISTORY", Arrays.asList("clearUserChatHistory"));
+        INTENT_TO_TOOLS.put("INTENT_CLEAR_ALL_USER_MEMORY", Arrays.asList("clearUserLongTermMemory", "clearUserChatHistory"));
     }
 
     public ReActService(ChatClient chatClient) {
