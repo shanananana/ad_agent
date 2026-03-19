@@ -494,6 +494,17 @@
         await parseSSE(reader, (event, data) => {
           if (event === 'thinking') appendThinking(data);
           else if (event === 'content' && data) appendAssistantChunk(data);
+          else if (event === 'client' && data) {
+            try {
+              const o = JSON.parse(data);
+              if (o.reload) {
+                setTimeout(function () {
+                  try { localStorage.removeItem(STORAGE_SESSION); } catch (e) {}
+                  window.location.reload();
+                }, 400);
+              }
+            } catch (e) { /* ignore */ }
+          }
         });
         finalizeAssistantMessage();
       } catch (e) {

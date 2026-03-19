@@ -12,11 +12,14 @@ import org.springframework.stereotype.Repository;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * 聊天记录持久化：按会话存 data/chat/sessions/{sessionId}.json，按用户索引 data/chat/users/{userId}/sessions.json
@@ -151,6 +154,44 @@ public class ChatHistoryRepository {
                 .sorted((a, b) -> (b.getUpdatedAt() != null && a.getUpdatedAt() != null)
                         ? b.getUpdatedAt().compareTo(a.getUpdatedAt()) : 0)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 合并用户索引中的会话与磁盘 sessions 目录下「文件内 userId 一致」的会话，用于清除聊天时不漏删孤儿文件。
+     */
+    public LinkedHashSet<String> collectSessionIdsForUser(String userId) {
+        LinkedHashSet<String> ids = new LinkedHashSet<>();
+        if (userId == null || userId.isBlank()) {
+            return ids;
+        }
+        String uid = userId.trim();
+        for (UserSessionsIndex.SessionMeta m : listSessionsByUser(uid)) {
+            if (m.getSessionId() != null && !m.getSessionId().isBlank()) {
+                ids.add(m.getSessionId().trim());
+            }
+        }
+        Path sessionsDir = dataPathConfig.getBaseDir().resolve("chat").resolve("sessions");
+        if (!Files.isDirectory(sessionsDir)) {
+            return ids;
+        }
+        try (Stream<Path> stream = Files.list(sessionsDir)) {
+            stream.filter(p -> p.getFileName().toString().endsWith(".json")).forEach(p -> {
+                try {
+                    ChatSessionRecord r = objectMapper.readValue(p.toFile(), ChatSessionRecord.class);
+                    if (r == null || r.getUserId() == null || r.getSessionId() == null) {
+                        return;
+                    }
+                    if (uid.equals(r.getUserId().trim())) {
+                        ids.add(r.getSessionId().trim());
+                    }
+                } catch (Exception e) {
+                    logger.debug("【聊天记录】扫描会话目录跳过 {}: {}", p.getFileName(), e.getMessage());
+                }
+            });
+        } catch (IOException e) {
+            logger.warn("【聊天记录】列举 sessions 目录失败: {}", e.getMessage());
+        }
+        return ids;
     }
 
     /** 删除会话：删除会话文件并从用户索引中移除 */

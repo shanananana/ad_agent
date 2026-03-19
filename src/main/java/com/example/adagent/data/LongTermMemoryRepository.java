@@ -109,4 +109,24 @@ public class LongTermMemoryRepository {
         f.setUpdatedAt(Instant.now().toString());
         return f;
     }
+
+    /**
+     * 删除该用户的长期记忆文件（若存在）。与 {@link #append} 使用相同 userId 粒度锁。
+     */
+    public void deleteForUser(String userId) throws IOException {
+        if (userId == null || userId.isBlank()) {
+            return;
+        }
+        ReentrantLock lock = lockFor(userId);
+        lock.lock();
+        try {
+            var path = dataPathConfig.getLongTermMemoryPath(userId);
+            if (Files.exists(path)) {
+                Files.delete(path);
+                logger.info("【数据层-长期记忆】已删除文件 userId={} path={}", userId, path);
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
 }

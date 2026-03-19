@@ -6,8 +6,11 @@ import com.example.adagent.agent.perception.EntityExtractionService;
 import com.example.adagent.agent.perception.IntentRecognitionService;
 import com.example.adagent.agent.planning.PlanningService;
 import com.example.adagent.controller.StreamEvent;
+import com.example.adagent.data.LongTermMemoryRepository;
+import com.example.adagent.service.AdChatSessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -22,21 +25,27 @@ public class AdAgentOrchestrator {
     private final PlanningService planningService;
     private final MemoryService memoryService;
     private final ToolExecutionService toolExecutionService;
+    private final LongTermMemoryRepository longTermMemoryRepository;
+    private final AdChatSessionService adChatSessionService;
 
     public AdAgentOrchestrator(
             IntentRecognitionService intentRecognitionService,
             EntityExtractionService entityExtractionService,
             PlanningService planningService,
             MemoryService memoryService,
-            ToolExecutionService toolExecutionService) {
+            ToolExecutionService toolExecutionService,
+            LongTermMemoryRepository longTermMemoryRepository,
+            @Lazy AdChatSessionService adChatSessionService) {
         this.intentRecognitionService = intentRecognitionService;
         this.entityExtractionService = entityExtractionService;
         this.planningService = planningService;
         this.memoryService = memoryService;
         this.toolExecutionService = toolExecutionService;
+        this.longTermMemoryRepository = longTermMemoryRepository;
+        this.adChatSessionService = adChatSessionService;
     }
 
-    public String execute(String sessionId, String userId, String userInput) {
+    public ChatTurnResult execute(String sessionId, String userId, String userInput) {
         logger.info("【AD Agent编排器】会话: {}, 用户: {}, 输入: {}", sessionId, userId, userInput);
         try {
             String longTermContext = memoryService.getLongTermContext(userId, userInput);
@@ -51,8 +60,16 @@ public class AdAgentOrchestrator {
                     memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
                     memoryService.addToShortTermMemory(sessionId, "assistant", msg, userId);
                     logger.info("【AD Agent编排器】加计划追问，不调用工具");
-                    return msg;
+                    return ChatTurnResult.of(msg);
                 }
+            }
+
+            PrivacyClearHandled privacy = runServerSidePrivacyClearIfApplicable(intentResult, userId, sessionId);
+            if (privacy != null) {
+                memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
+                memoryService.addToShortTermMemory(sessionId, "assistant", privacy.message(), userId);
+                logger.info("【AD Agent编排器】服务端已执行隐私清除，跳过工具链路");
+                return ChatTurnResult.of(privacy.message(), privacy.suggestPageRefresh());
             }
 
             String enhancedPrompt = buildEnhancedPrompt(sessionId, userId, userInput, shortTermContext, longTermContext, intentResult, entityResult);
@@ -67,10 +84,10 @@ public class AdAgentOrchestrator {
             memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
             memoryService.addToShortTermMemory(sessionId, "assistant", response, userId);
             logger.info("【AD Agent编排器】执行完成");
-            return response;
+            return ChatTurnResult.of(response);
         } catch (Exception e) {
             logger.error("【AD Agent编排器】执行失败", e);
-            return "抱歉，处理您的请求时遇到了问题。请稍后再试。";
+            return ChatTurnResult.of("抱歉，处理您的请求时遇到了问题。请稍后再试。");
         }
     }
 
@@ -80,6 +97,52 @@ public class AdAgentOrchestrator {
                 && intentResult.isNeedClarification()
                 && intentResult.getSuggestedClarificationMessage() != null
                 && !intentResult.getSuggestedClarificationMessage().isBlank();
+    }
+
+    private record PrivacyClearHandled(String message, boolean suggestPageRefresh) {}
+
+    /**
+     * 隐私类意图在服务端直接删文件，避免仅依赖 LLM 是否调用工具导致「口头已删、磁盘未删」。
+     *
+     * @return 若本分支已处理则非 null；否则 null 走常规模型+工具链路。成功删除磁盘数据时 suggestPageRefresh=true，便于前端整页刷新。
+     */
+    private PrivacyClearHandled runServerSidePrivacyClearIfApplicable(IntentRecognitionService.IntentResult intentResult,
+                                                                    String userId, String sessionId) {
+        if (!intentResult.isNeedsTool()) {
+            return null;
+        }
+        String type = intentResult.getIntentType();
+        boolean clearLt = "INTENT_CLEAR_LONG_TERM_MEMORY".equals(type) || "INTENT_CLEAR_ALL_USER_MEMORY".equals(type);
+        boolean clearChat = "INTENT_CLEAR_CHAT_HISTORY".equals(type) || "INTENT_CLEAR_ALL_USER_MEMORY".equals(type);
+        if (!clearLt && !clearChat) {
+            return null;
+        }
+        if (userId == null || userId.isBlank()) {
+            return new PrivacyClearHandled(
+                    "当前请求未携带用户标识，无法在服务端清除您的长期记忆或聊天记录。请先登录或在请求中传入 userId 后再试。",
+                    false);
+        }
+        String uid = userId.trim();
+        try {
+            if (clearLt) {
+                longTermMemoryRepository.deleteForUser(uid);
+            }
+            if (clearChat) {
+                adChatSessionService.deleteAllChatHistoryForUser(uid, sessionId);
+            }
+        } catch (Exception e) {
+            logger.error("【AD Agent编排器】服务端隐私清除失败 userId={}", uid, e);
+            return new PrivacyClearHandled("清除数据时发生错误，请稍后重试。若问题持续，请联系管理员。", false);
+        }
+        if (clearLt && clearChat) {
+            return new PrivacyClearHandled("已在服务端清除您的长期记忆与全部聊天记录（含磁盘上的会话文件）。", true);
+        }
+        if (clearLt) {
+            return new PrivacyClearHandled("已在服务端清除您的长期记忆（偏好与习惯摘要文件已删除）。", true);
+        }
+        return new PrivacyClearHandled(
+                "已在服务端删除您的全部聊天记录（含索引与 sessions 目录下属于您的会话文件），当前会话上下文已清空。",
+                true);
     }
 
     public Flux<String> executeStream(String sessionId, String userId, String userInput) {
@@ -96,6 +159,12 @@ public class AdAgentOrchestrator {
                     memoryService.addToShortTermMemory(sessionId, "assistant", msg, userId);
                     return Flux.just(msg);
                 }
+            }
+            PrivacyClearHandled privacy = runServerSidePrivacyClearIfApplicable(intentResult, userId, sessionId);
+            if (privacy != null) {
+                memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
+                memoryService.addToShortTermMemory(sessionId, "assistant", privacy.message(), userId);
+                return Flux.just(privacy.message());
             }
             String enhancedPrompt = buildEnhancedPrompt(sessionId, userId, userInput, shortTermContext, longTermContext, intentResult, entityResult);
             StringBuilder fullContent = new StringBuilder();
@@ -128,6 +197,19 @@ public class AdAgentOrchestrator {
                     memoryService.addToShortTermMemory(sessionId, "assistant", msg, userId);
                     return Flux.just(StreamEvent.content(msg));
                 }
+            }
+            PrivacyClearHandled privacy = runServerSidePrivacyClearIfApplicable(intentResult, userId, sessionId);
+            if (privacy != null) {
+                memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
+                memoryService.addToShortTermMemory(sessionId, "assistant", privacy.message(), userId);
+                String thinking = "意图: " + intentResult.getIntentType() + "\n服务端已执行隐私数据删除（不依赖模型调工具）。";
+                if (privacy.suggestPageRefresh()) {
+                    return Flux.just(
+                            StreamEvent.thinking(thinking),
+                            StreamEvent.content(privacy.message()),
+                            StreamEvent.client("{\"reload\":true}"));
+                }
+                return Flux.just(StreamEvent.thinking(thinking), StreamEvent.content(privacy.message()));
             }
             String enhancedPrompt = buildEnhancedPrompt(sessionId, userId, userInput, shortTermContext, longTermContext, intentResult, entityResult);
             boolean needsTool = intentResult.isNeedsTool();
@@ -171,7 +253,10 @@ public class AdAgentOrchestrator {
         StringBuilder prompt = new StringBuilder();
         prompt.append("【当前会话ID】").append(sessionId).append("。\n\n");
         if (userId != null && !userId.isBlank()) {
-            prompt.append("【当前用户ID】").append(userId).append("。调用 queryBaseData、queryPerformance、addCampaign、adjustStrategy 时请传入参数 userId 为该值，以按用户隔离基础数据与效果数据。\n\n");
+            prompt.append("【当前用户ID】").append(userId).append("。调用 queryBaseData、queryPerformance、addCampaign、adjustStrategy 时请传入参数 userId 为该值，以按用户隔离基础数据与效果数据。");
+            prompt.append(" 若需清除长期记忆，调用 clearUserLongTermMemory 且 userId 填该值；若需清除全部聊天记录，调用 clearUserChatHistory，userId 填该值，currentSessionId 填上面的【当前会话ID】。\n\n");
+        } else {
+            prompt.append("【当前用户ID】未提供。用户若要求清除长期记忆或聊天记录，应说明无法执行删除并引导其先登录或传入用户标识。\n\n");
         }
         if (longTermContext != null && !longTermContext.isEmpty()) {
             prompt.append(longTermContext);

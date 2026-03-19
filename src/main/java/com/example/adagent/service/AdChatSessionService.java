@@ -1,6 +1,7 @@
 package com.example.adagent.service;
 
 import com.example.adagent.agent.AdAgentOrchestrator;
+import com.example.adagent.agent.ChatTurnResult;
 import com.example.adagent.agent.memory.MemoryService;
 import com.example.adagent.controller.StreamEvent;
 import com.example.adagent.data.ChatHistoryRepository;
@@ -49,22 +50,22 @@ public class AdChatSessionService {
         return sessionId;
     }
 
-    public String chat(String sessionId, String userMessage) {
+    public ChatTurnResult chat(String sessionId, String userMessage) {
         try {
             String userId = sessionToUserMap.getOrDefault(sessionId, null);
             if (!memoryService.isImmediateLongTermFlush()) {
                 memoryService.maybeFlushLongTermMemory(sessionId, userId);
             }
-            String response = agentOrchestrator.execute(sessionId, userId, userMessage);
+            ChatTurnResult turn = agentOrchestrator.execute(sessionId, userId, userMessage);
             if (memoryService.isImmediateLongTermFlush()) {
                 memoryService.flushRoundToLongTermMemory(sessionId, userId);
             } else {
                 memoryService.updateLastActivity(sessionId);
             }
-            return response;
+            return turn;
         } catch (Exception e) {
             logger.error("AD Agent 处理请求时发生错误", e);
-            return "抱歉，处理您的请求时遇到了问题。请稍后再试。";
+            return ChatTurnResult.of("抱歉，处理您的请求时遇到了问题。请稍后再试。");
         }
     }
 
@@ -130,5 +131,23 @@ public class AdChatSessionService {
         memoryService.clearShortTermMemory(sessionId);
         sessionToUserMap.remove(sessionId);
         logger.info("【AdChatSessionService】删除会话: {}", sessionId);
+    }
+
+    /**
+     * 删除某用户在本地持久化的全部聊天会话（索引中的会话 + 可选的当前会话），并清理对应短期记忆与绑定。
+     */
+    public void deleteAllChatHistoryForUser(String userId, String currentSessionId) {
+        if (userId == null || userId.isBlank()) {
+            return;
+        }
+        String uid = userId.trim();
+        var ids = chatHistoryRepository.collectSessionIdsForUser(uid);
+        if (currentSessionId != null && !currentSessionId.isBlank()) {
+            ids.add(currentSessionId.trim());
+        }
+        for (String sid : ids) {
+            deleteSession(sid);
+        }
+        logger.info("【AdChatSessionService】已按用户删除聊天数据 userId={}, 会话数={}", uid, ids.size());
     }
 }
