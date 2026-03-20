@@ -5,11 +5,19 @@ import com.example.adagent.tools.CampaignMutationTools;
 import com.example.adagent.tools.PerformanceTools;
 import com.example.adagent.tools.UserPrivacyTools;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class ChatClientConfig {
+
+    @Bean
+    public SimpleLoggerAdvisor simpleLoggerAdvisor() {
+        return new SimpleLoggerAdvisor();
+    }
 
     private static final String DEFAULT_SYSTEM = """
         你是广告投放助手，帮助用户管理投放计划、查询投放效果、新建计划、调整策略。
@@ -40,6 +48,7 @@ public class ChatClientConfig {
     @Bean
     public ChatClient chatClient(
             ChatClient.Builder chatClientBuilder,
+            SimpleLoggerAdvisor simpleLoggerAdvisor,
             BaseDataTools baseDataTools,
             PerformanceTools performanceTools,
             CampaignMutationTools campaignMutationTools,
@@ -47,6 +56,19 @@ public class ChatClientConfig {
         return chatClientBuilder
                 .defaultTools(baseDataTools, performanceTools, campaignMutationTools, userPrivacyTools)
                 .defaultSystem(DEFAULT_SYSTEM)
+                .defaultAdvisors(simpleLoggerAdvisor)
+                .build();
+    }
+
+    /** 仅用于自动调价助手（B×α）：无工具，避免与主 ChatClient.Builder 状态互相干扰 */
+    @Bean
+    @Qualifier("biddingChatClient")
+    public ChatClient biddingChatClient(ChatModel chatModel, SimpleLoggerAdvisor simpleLoggerAdvisor) {
+        return ChatClient.builder(chatModel)
+                .defaultSystem("""
+                    你是自动调价助手。只输出合法 JSON，不要 Markdown 代码块；rationale 须按用户要求分节写清上调、下调及原因。
+                    """)
+                .defaultAdvisors(simpleLoggerAdvisor)
                 .build();
     }
 }

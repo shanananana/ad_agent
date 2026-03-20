@@ -83,6 +83,16 @@
       flex-wrap: wrap;
     }
     .header span { color: #7aa2f7; }
+    .header a.nav-link {
+      color: #7aa2f7;
+      font-size: 13px;
+      text-decoration: none;
+      margin-left: auto;
+      padding: 4px 10px;
+      border: 1px solid #3b4261;
+      border-radius: 6px;
+    }
+    .header a.nav-link:hover { background: #2d334d; color: #89b4fa; }
     .header label { display: flex; align-items: center; gap: 6px; }
     .header input#userId {
       width: 120px;
@@ -238,6 +248,7 @@
       <span>AD Agent</span>
       <label>用户 ID: <input type="text" id="userId" placeholder="必填，可随意填写如 10000" autocomplete="off"></label>
       <span>会话: <span id="sessionId">-</span></span>
+      <a href="/bid-strategy.html" class="nav-link">自动调价助手</a>
     </div>
     <div class="chat" id="chat"></div>
     <div class="input-row">

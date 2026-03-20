@@ -1,13 +1,55 @@
 # ad_agent
 
-广告投放垂类 Agent：根据投放数据做效果查询、计划与策略建议，支持多用户隔离、长期记忆与聊天记录持久化（学习项目，数据为本地/测试数据）。
+> **自动调价助手（B×α）**：按 **用户 ID → 计划列表 → 计划详情** 查看 **投放效果**（`performance.json` 多维度汇总与明细），并在 **每个计划** 下独立维护 **B×α 网格**、执行 **LLM 调价**，在页面底部查看 **任务日志（job log）**（含程序生成的涨跌概要与模型给出的调价依据）。  
+> **入口**：[http://localhost:8081/bid-strategy.html](http://localhost:8081/bid-strategy.html)（用户 ID 与对话页一致，共用本地存储键 `adAgentUserId`）。
+
+<details>
+<summary><strong>计划详情 · 投放效果</strong>（点击展开截图）</summary>
+
+汇总卡片 + 按日期/渠道/年龄段/广告组/广告等 **细分（breakdown）** 的效果明细。
+
+![计划详情-投放效果汇总与明细](./docs/images/bid-strategy-performance-detail.png)
+
+</details>
+
+<details>
+<summary><strong>本计划 B×α 调价网格</strong>（点击展开截图）</summary>
+
+人群 × 时段 × 设备 维度的展示/点击/消耗/CTR/ROI、基础出价 B、系数 α 与 B×α；支持重造快照、执行调价（LLM）、重造快照并调价。每计划数据目录：`data/bid/campaigns/<计划ID>/`。
+
+![本计划 B×α 调价网格](./docs/images/bid-strategy-b-alpha-grid.png)
+
+</details>
+
+<details>
+<summary><strong>本计划调价任务日志（job log）</strong>（点击展开截图）</summary>
+
+每次任务的成功/失败、系数版本、输入摘要、**涨跌概要**（旧 α→新 α）、**LLM 说明**（上调/下调/维持与小结及原因）。
+
+![本计划调价任务日志](./docs/images/bid-strategy-job-log.png)
+
+</details>
+
+### 任务日志（job log）说明
+
+| 项目 | 说明 |
+|------|------|
+| **页面** | 计划详情页底部 **「本计划调价任务日志」** |
+| **存储** | 每计划：`data/bid/campaigns/<计划ID>/coefficient_job_log.json`；全局兼容：`data/bid/coefficient_job_log.json` |
+| **接口** | `GET /api/ad-agent/bid-strategy/campaigns/{campaignId}/job-log?userId=…&limit=15` |
+| **字段** | `success`、`coefficientsVersionBefore/After`、`inputSummary`、`alphaChangeSummary`、`llmRationale`、`errorMessage`、`campaignId`（可选）等 |
+
+完整设计：[docs/ai_design_doc/bid-coefficient-agent.md](docs/ai_design_doc/bid-coefficient-agent.md)
 
 ---
+
+广告投放垂类 Agent：根据投放数据做效果查询、计划与策略建议，支持多用户隔离、长期记忆与聊天记录持久化（学习项目，数据为本地/测试数据）。
 
 ## 项目介绍
 
 ad_agent 是一个面向广告投放场景的对话式 Agent，主要能力包括：
 
+- **自动调价助手**：见上文；按计划在独立目录下调系数 α，定时任务可遍历用户下全部计划（`ad-agent.bidding.schedule-user-id`）
 - **效果与计划查询**：查展示、点击、CTR、消耗、ROI、每日趋势，以及计划/广告组/广告/素材列表与详情
 - **投放操作**：新建计划、调整预算与启停状态，变更后自动生成效果数据
 - **多用户隔离**：按用户 ID 隔离基础数据与效果数据，不同用户互不影响
@@ -67,6 +109,17 @@ mvn spring-boot:run
 - 输入问题即可对话，支持流式回复与「思考过程」展开
 - 若说出**清除长期记忆 / 清空聊天记录 / 全部清除**等且携带有效 **userId**，服务端删除对应文件后，静态页会在约 0.4 秒后**自动刷新**（并清除本地保存的 sessionId）
 
+### 4. 自动调价助手（B × α）
+
+浏览器访问：**http://localhost:8081/bid-strategy.html**
+
+1. 填写与对话页相同的 **用户 ID**，点击 **「加载计划列表」**。
+2. 点击某一计划进入 **详情**：查看 **投放效果**（汇总 + 明细表）、计划结构；若无效果数据可先点 **「生成效果样本（追加 7 天）」**。
+3. 在同一页操作 **本计划 B×α**：**重造效果快照**、**执行调价（LLM）**、**重造快照并调价**（需配置千问密钥）；底部查看 **任务日志**。
+4. 每计划出价与日志在 `data/bid/campaigns/<计划ID>/`，与全局 `data/bid/*.json` 互不覆盖；兼容接口仍可直接访问根目录下的全局文件。
+
+定时任务默认 **每小时** 按 `ad-agent.bidding.schedule-user-id`（空则读全局 `campaigns.json`）**对每个计划分别**跑一次调价；可用 `ad-agent.bidding.enabled: false` 关闭。设计说明：[docs/ai_design_doc/bid-coefficient-agent.md](docs/ai_design_doc/bid-coefficient-agent.md)
+
 ---
 
 ## 使用说明
@@ -95,6 +148,11 @@ mvn spring-boot:run
 |--------|------|------|
 | `ad-agent.data.base-path` | 本地数据根目录 | `./data` |
 | `ad-agent.memory.immediate-long-term-flush` | 长期记忆写入时机：`true`=每轮结束立即写入，`false`=空闲 5 分钟后写入 | `true` |
+| `ad-agent.bidding.enabled` | 是否启用自动调价助手定时任务 | `true` |
+| `ad-agent.bidding.cron` | Spring 6 域 cron（秒 分 时…），默认每小时整点 | `0 0 * * * ?` |
+| `ad-agent.bidding.alpha-min` / `alpha-max` | 系数 α 绝对上下界 | `0.5` / `1.5` |
+| `ad-agent.bidding.max-relative-change` | 单周期相对上一版 α 最大变化比例 | `0.2` |
+| `ad-agent.bidding.schedule-user-id` | 定时任务遍历该用户下所有计划分别调价；空则读全局 `campaigns.json` | `""` |
 
 ### 数据目录确认
 
@@ -184,14 +242,19 @@ curl http://localhost:8081/api/ad-agent/data-path
 ad_agent/
 ├── pom.xml
 ├── README.md
-├── docs/ai_design_doc/                  # 设计文档（意图与会话上下文、隐私清除与工具等）
+├── docs/
+│   ├── ai_design_doc/                   # 设计文档（意图与会话上下文、隐私清除与工具等）
+│   └── images/                          # README 配图（自动调价助手截图）
 ├── src/main/java/com/example/adagent/
 │   ├── AdAgentApplication.java          # 启动类
 │   ├── config/                          # 配置
-│   │   ├── DataPathConfig.java          # 数据路径（模板、按用户 base/performance、聊天、长期记忆）
-│   │   └── ChatClientConfig.java        # Spring AI ChatClient + 工具注册
+│   │   ├── DataPathConfig.java          # 数据路径（含 data/bid 出价策略文件）
+│   │   ├── ChatClientConfig.java        # Spring AI ChatClient + 工具注册 + biddingChatClient（无工具）
+│   │   ├── BiddingProperties.java       # ad-agent.bidding 配置
+│   │   └── BiddingSchedulingConfig.java # @EnableScheduling
 │   ├── controller/
 │   │   ├── AdAgentController.java       # REST：对话、会话、历史、删除、流式
+│   │   ├── BidStrategyController.java   # REST：计划列表/详情/效果、按计划 B×α、job-log、快照
 │   │   └── StreamEvent.java             # 流式事件（thinking / content / client）
 │   ├── service/
 │   │   └── AdChatSessionService.java    # 会话与用户绑定、创建/清除/删除、编排调用
@@ -216,6 +279,14 @@ ad_agent/
 │   │   ├── PerformanceTools.java       # queryPerformance(userId, campaignId, ...)
 │   │   ├── CampaignMutationTools.java   # addCampaign(userId, ...), adjustStrategy(userId, ...)
 │   │   └── UserPrivacyTools.java        # clearUserLongTermMemory、clearUserChatHistory（编排器同步删盘为主）
+│   ├── bidding/                         # 自动调价助手 B×α（与对话 Agent 独立）
+│   │   ├── BidStrategyRepository.java   # JSON 持久化
+│   │   ├── BidStrategyService.java      # getBaseBid / getCoefficient / getEffectiveBaseBid
+│   │   ├── EffectSnapshotGenerator.java # 合成效果快照
+│   │   ├── BidCoefficientLlmService.java
+│   │   ├── BidCoefficientJobService.java
+│   │   ├── BidCoefficientScheduledJob.java
+│   │   └── dto/                         # BaseBidModelFile, CoefficientsFile 等
 │   ├── data/                            # 数据层
 │   │   ├── AdDataRepository.java        # 基础数据：按用户 load/save，无则从模板复制
 │   │   ├── PerformanceDataRepository.java      # 效果数据：按用户生成与读写
@@ -227,7 +298,8 @@ ad_agent/
 │   ├── application.yml
 │   ├── application-secret.yml.example
 │   └── static/
-│       └── chat.html                    # 对话页（用户 ID、会话列表、历史、删除；清除成功后 SSE client → 自动刷新）
+│       ├── chat.html                    # 对话页（用户 ID、会话列表、历史、删除；清除成功后 SSE client → 自动刷新）
+│       └── bid-strategy.html            # 自动调价助手（B×α）看板
 └── data/                                # 运行时数据（可配置 base-path）
     ├── base/
     │   ├── _template_campaigns.json     # 只读模板，禁止修改
@@ -238,9 +310,15 @@ ad_agent/
     │   └── users/{userId}/performance.json     # 按用户效果数据
     ├── long_term_memory/
     │   └── {userId}.json                # 长期记忆（用户习惯/偏好）
-    └── chat/
-        ├── sessions/{sessionId}.json    # 单会话聊天记录
-        └── users/{userId}/sessions.json        # 用户会话列表索引
+    ├── chat/
+    │   ├── sessions/{sessionId}.json    # 单会话聊天记录
+    │   └── users/{userId}/sessions.json        # 用户会话列表索引
+    └── bid/                               # 出价策略（默认 .gitignore，启动时自动生成）
+        ├── base_bid_model.json            # 全局兼容：基础出价 B
+        ├── coefficients.json              # 全局兼容：系数 α
+        ├── effect_snapshot.json           # 全局兼容：效果快照（可合成）
+        ├── coefficient_job_log.json       # 全局兼容：任务与 LLM 依据
+        └── campaigns/{campaignId}/        # 按计划隔离：同上四套文件名各一份
 ```
 
 ---
