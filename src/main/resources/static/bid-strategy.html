@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>自动调价助手（B×α）</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      margin: 0;
+      background: #1a1b26;
+      color: #c0caf5;
+      min-height: 100vh;
+      padding: 16px 20px 40px;
+    }
+    h1 { font-size: 18px; color: #7aa2f7; margin: 0 0 8px; }
+    .meta { font-size: 12px; color: #565f89; margin-bottom: 16px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center; }
+    .toolbar a { color: #7aa2f7; font-size: 13px; }
+    .toolbar label { font-size: 13px; color: #a9b1d6; }
+    .toolbar input#userId { width: 140px; margin-left: 6px; padding: 6px 8px; border-radius: 6px; border: 1px solid #3b4261; background: #16161e; color: #c0caf5; }
+    button {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      background: #7aa2f7;
+      color: #1a1b26;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    button.secondary { background: #414868; color: #c0caf5; }
+    button:hover { filter: brightness(1.08); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status { font-size: 13px; color: #9ece6a; margin-left: 8px; }
+    .err { color: #f7768e; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: #16161e;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td { border: 1px solid #3b4261; padding: 6px 8px; text-align: right; }
+    th { background: #24283b; color: #7aa2f7; text-align: center; }
+    td:first-child, th:first-child { text-align: left; }
+    .num-left td:first-child, .num-left th:first-child { text-align: right; }
+    section { margin-top: 24px; }
+    h2 { font-size: 15px; color: #bb9af7; margin-bottom: 10px; }
+    h3 { font-size: 13px; color: #7dcfff; margin: 16px 0 8px; }
+    .job-card {
+      background: #16161e;
+      border: 1px solid #3b4261;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      font-size: 12px;
+    }
+    .job-card .ok { color: #9ece6a; }
+    .job-card .fail { color: #f7768e; }
+    .rationale { white-space: pre-wrap; color: #a9b1d6; margin-top: 8px; }
+    tr.click-row { cursor: pointer; }
+    tr.click-row:hover { background: #24283b; }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: #16161e;
+      border: 1px solid #3b4261;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 12px;
+    }
+    .stat-card .k { color: #565f89; font-size: 11px; }
+    .stat-card .v { color: #c0caf5; font-size: 16px; font-weight: 600; margin-top: 4px; }
+    .tree { font-size: 12px; color: #a9b1d6; line-height: 1.5; margin-left: 8px; }
+    .tree .indent { margin-left: 16px; border-left: 1px solid #3b4261; padding-left: 10px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1>自动调价助手（B × α）</h1>
+  <p class="meta">先选择用户 ID（与对话页一致），查看计划列表；进入计划后可看<strong>投放效果汇总与明细</strong>，并在该计划下单独维护 B×α 与调价任务。数据目录：<code>data/bid/campaigns/&lt;计划ID&gt;/</code>。</p>
+
+  <div class="toolbar">
+    <a href="/chat.html">← 对话页</a>
+    <label>用户 ID <input type="text" id="userId" placeholder="与对话页相同" autocomplete="off"></label>
+    <button type="button" id="btnLoadPlans">加载计划列表</button>
+    <span id="status" class="status"></span>
+  </div>
+
+  <div id="viewList">
+    <h2>我的计划</h2>
+    <div style="overflow-x: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>计划 ID</th>
+            <th>名称</th>
+            <th>状态</th>
+            <th>日预算</th>
+            <th>广告组数</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyPlans"></tbody>
+      </table>
+    </div>
+    <p class="meta" id="listHint">请输入用户 ID 并点击「加载计划列表」。无数据时请先在对话里加计划，或在本页用户对应 <code>data/base/users/…/campaigns.json</code> 中维护。</p>
+  </div>
+
+  <div id="viewDetail" class="hidden">
+    <div class="toolbar">
+      <button type="button" id="btnBack" class="secondary">← 返回计划列表</button>
+      <strong id="detailTitle"></strong>
+    </div>
+
+    <section>
+      <h2>投放效果（performance 数据）</h2>
+      <p class="meta">来自 <code>performance.json</code> 中该计划 ID 的明细汇总。若无数据，可点击「生成效果样本」写入学习用合成数据。</p>
+      <div class="toolbar">
+        <button type="button" id="btnSyncPerf" class="secondary">生成效果样本（追加 7 天）</button>
+        <button type="button" id="btnRefreshDetail">刷新本页</button>
+      </div>
+      <div id="perfSummary" class="stat-grid"></div>
+      <h3>效果明细（最近）</h3>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>渠道</th>
+              <th>年龄段</th>
+              <th>展示</th>
+              <th>点击</th>
+              <th>消耗</th>
+              <th>CTR</th>
+              <th>ROI</th>
+              <th>广告组</th>
+              <th>广告</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyPerf"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>计划结构</h2>
+      <div id="campaignTree" class="tree"></div>
+    </section>
+
+    <section>
+      <h2>本计划 B × α（调价网格）</h2>
+      <p class="meta">每个计划独立目录：系数、快照、任务日志与全局互不覆盖。</p>
+      <div class="toolbar">
+        <button type="button" id="btnRegenSnap">重造效果快照</button>
+        <button type="button" id="btnRunJob">执行调价（LLM）</button>
+        <button type="button" id="btnRunJobRegen" class="secondary">重造快照并调价</button>
+      </div>
+      <div id="overviewMeta" class="meta"></div>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>人群</th>
+              <th>时段(h)</th>
+              <th>设备</th>
+              <th>展示</th>
+              <th>点击</th>
+              <th>消耗</th>
+              <th>CTR</th>
+              <th>ROI</th>
+              <th>B</th>
+              <th>α</th>
+              <th>B×α</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyBid"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>本计划调价任务日志</h2>
+      <div id="jobs"></div>
+    </section>
+  </div>
+
+  <script>
+    const API = '/api/ad-agent/bid-strategy';
+    const STORAGE_USER = 'adAgentUserId';
+    const statusEl = document.getElementById('status');
+    const userIdEl = document.getElementById('userId');
+    const viewList = document.getElementById('viewList');
+    const viewDetail = document.getElementById('viewDetail');
+
+    let currentCampaignId = null;
+
+    function setStatus(msg, isErr) {
+      statusEl.textContent = msg || '';
+      statusEl.className = 'status' + (isErr ? ' err' : '');
+    }
+
+    function escapeHtml(s) {
+      if (s == null || s === '') return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function getUserIdParam() {
+      const uid = (userIdEl && userIdEl.value) ? userIdEl.value.trim() : '';
+      return uid ? ('?userId=' + encodeURIComponent(uid)) : '';
+    }
+
+    /** 在已有 path 后追加 query：extra 如 'limit=15'，不含 ? */
+    function withQuery(extra) {
+      const u = getUserIdParam();
+      if (!extra) return u;
+      if (u) return u + '&' + extra;
+      return '?' + extra;
+    }
+
+    function saveUserId() {
+      try {
+        const uid = userIdEl.value.trim();
+        if (uid) localStorage.setItem(STORAGE_USER, uid);
+      } catch (e) {}
+    }
+
+    async function loadCampaignList() {
+      saveUserId();
+      setStatus('加载计划…');
+      const res = await fetch(API + '/campaigns' + getUserIdParam());
+      const data = await res.json();
+      const tbody = document.getElementById('tbodyPlans');
+      tbody.innerHTML = '';
+      (data.campaigns || []).forEach(function (c) {
+        const tr = document.createElement('tr');
+        tr.className = 'click-row';
+        tr.innerHTML =
+          '<td>' + escapeHtml(c.id) + '</td>' +
+          '<td>' + escapeHtml(c.name) + '</td>' +
+          '<td>' + escapeHtml(c.status) + '</td>' +
+          '<td>' + (c.dailyBudget != null ? c.dailyBudget : '-') + '</td>' +
+          '<td>' + (c.adGroupCount != null ? c.adGroupCount : 0) + '</td>';
+        tr.addEventListener('click', function () { openCampaign(c.id); });
+        tbody.appendChild(tr);
+      });
+      document.getElementById('listHint').textContent =
+        (data.campaigns && data.campaigns.length) ? '点击一行进入计划详情与调价。' : '当前无计划，请先添加计划或检查用户 ID。';
+      setStatus('已加载 ' + (data.campaigns || []).length + ' 个计划');
+    }
+
+    function renderPerfSummary(sum) {
+      const el = document.getElementById('perfSummary');
+      if (!sum) {
+        el.innerHTML = '';
+        return;
+      }
+      function card(k, v) {
+        return '<div class="stat-card"><div class="k">' + escapeHtml(k) + '</div><div class="v">' + escapeHtml(String(v)) + '</div></div>';
+      }
+      el.innerHTML =
+        card('明细条数', sum.rowCount) +
+        card('总展示', sum.totalImpressions) +
+        card('总点击', sum.totalClicks) +
+        card('总消耗', sum.totalCost) +
+        card('转化', sum.totalConversions) +
+        card('CTR', sum.ctr) +
+        card('ROI', sum.roi);
+    }
+
+    function renderPerfRows(rows) {
+      const tbody = document.getElementById('tbodyPerf');
+      tbody.innerHTML = '';
+      (rows || []).forEach(function (r) {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' + escapeHtml(r.date) + '</td>' +
+          '<td>' + escapeHtml(r.channel) + '</td>' +
+          '<td>' + escapeHtml(r.ageRange) + '</td>' +
+          '<td>' + r.impressions + '</td>' +
+          '<td>' + r.clicks + '</td>' +
+          '<td>' + r.cost + '</td>' +
+          '<td>' + r.ctr + '</td>' +
+          '<td>' + r.roi + '</td>' +
+          '<td>' + escapeHtml(r.adGroupId) + '</td>' +
+          '<td>' + escapeHtml(r.adId) + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderCampaignTree(campaign) {
+      const el = document.getElementById('campaignTree');
+      if (!campaign) {
+        el.textContent = '';
+        return;
+      }
+      let html = '<div><strong>' + escapeHtml(campaign.name || '') + '</strong> <span class="meta">(' + escapeHtml(campaign.id) + ')</span></div>';
+      (campaign.adGroups || []).forEach(function (ag) {
+        html += '<div class="indent">广告组 ' + escapeHtml(ag.name || ag.id) + ' <span class="meta">' + escapeHtml(ag.id) + '</span>';
+        (ag.ads || []).forEach(function (ad) {
+          html += '<div class="indent">广告 ' + escapeHtml(ad.name || ad.id) + ' <span class="meta">' + escapeHtml(ad.id) + '</span>';
+          (ad.creatives || []).forEach(function (cr) {
+            html += '<div class="indent">素材 ' + escapeHtml(cr.title || cr.id) + ' <span class="meta">' + escapeHtml(cr.id) + '</span></div>';
+          });
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+      el.innerHTML = html || '<span class="meta">无广告组</span>';
+    }
+
+    async function loadBidOverview() {
+      const res = await fetch(API + '/campaigns/' + encodeURIComponent(currentCampaignId) + '/overview' + getUserIdParam());
+      if (!res.ok) throw new Error('加载 B×α 失败');
+      const data = await res.json();
+      document.getElementById('overviewMeta').textContent =
+        '系数版本 v' + (data.coefficientsVersion || '-') +
+        ' · 更新 ' + (data.coefficientsUpdatedAt || '-') +
+        ' · 快照窗口 ' + (data.snapshotWindowEnd || '-');
+      const tbody = document.getElementById('tbodyBid');
+      tbody.innerHTML = '';
+      (data.rows || []).forEach(function (r) {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' + escapeHtml(r.audience) + '</td>' +
+          '<td>' + r.hourSlot + '</td>' +
+          '<td>' + escapeHtml(r.device) + '</td>' +
+          '<td>' + r.impressions + '</td>' +
+          '<td>' + r.clicks + '</td>' +
+          '<td>' + r.cost + '</td>' +
+          '<td>' + r.ctr + '</td>' +
+          '<td>' + r.roi + '</td>' +
+          '<td>' + r.baseBid + '</td>' +
+          '<td>' + r.alpha + '</td>' +
+          '<td>' + r.effectiveBid + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function loadJobLog() {
+      const res = await fetch(
+          API + '/campaigns/' + encodeURIComponent(currentCampaignId) + '/job-log' + withQuery('limit=15'));
+      const data = await res.json();
+      const jobsEl = document.getElementById('jobs');
+      jobsEl.innerHTML = '';
+      (data.jobs || []).forEach(function (j) {
+        const div = document.createElement('div');
+        div.className = 'job-card';
+        const ok = j.success ? '<span class="ok">成功</span>' : '<span class="fail">失败</span>';
+        div.innerHTML =
+          '<div><strong>' + ok + '</strong> · ' + escapeHtml(j.startedAt) + ' · jobId ' + escapeHtml((j.jobId || '').slice(0, 8)) + '…</div>' +
+          '<div class="meta">v' + j.coefficientsVersionBefore + ' → v' + j.coefficientsVersionAfter + '</div>' +
+          (j.inputSummary ? '<div class="meta">输入: ' + escapeHtml(j.inputSummary) + '</div>' : '') +
+          (j.alphaChangeSummary ? '<div class="meta"><strong>涨跌概要</strong> ' + escapeHtml(j.alphaChangeSummary) + '</div>' : '') +
+          (j.errorMessage ? '<div class="fail">' + escapeHtml(j.errorMessage) + '</div>' : '') +
+          (j.llmRationale ? '<div class="rationale"><strong>LLM 说明</strong><br>' + escapeHtml(j.llmRationale) + '</div>' : '');
+        jobsEl.appendChild(div);
+      });
+    }
+
+    async function openCampaign(campaignId) {
+      saveUserId();
+      currentCampaignId = campaignId;
+      setStatus('加载计划详情…');
+      try {
+        const res = await fetch(API + '/campaigns/' + encodeURIComponent(campaignId) + '/detail' + getUserIdParam());
+        if (!res.ok) throw new Error((await res.text()) || '加载失败');
+        const detail = await res.json();
+        document.getElementById('detailTitle').textContent =
+          (detail.campaign && detail.campaign.name ? detail.campaign.name : campaignId) + ' · ' + campaignId;
+        renderPerfSummary(detail.performanceSummary);
+        renderPerfRows(detail.performanceRecent);
+        renderCampaignTree(detail.campaign);
+        viewList.classList.add('hidden');
+        viewDetail.classList.remove('hidden');
+        await loadBidOverview();
+        await loadJobLog();
+        try { location.hash = encodeURIComponent(campaignId); } catch (e) {}
+        setStatus('');
+      } catch (e) {
+        setStatus(e.message, true);
+      }
+    }
+
+    function closeDetail() {
+      currentCampaignId = null;
+      viewDetail.classList.add('hidden');
+      viewList.classList.remove('hidden');
+      try { history.replaceState(null, '', location.pathname); } catch (e) {}
+      setStatus('');
+    }
+
+    async function postJson(url, body) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {})
+      });
+      return res.json();
+    }
+
+    document.getElementById('btnLoadPlans').addEventListener('click', loadCampaignList);
+    document.getElementById('btnBack').addEventListener('click', closeDetail);
+
+    document.getElementById('btnRefreshDetail').addEventListener('click', async function () {
+      if (!currentCampaignId) return;
+      setStatus('刷新中…');
+      try {
+        const res = await fetch(API + '/campaigns/' + encodeURIComponent(currentCampaignId) + '/detail' + getUserIdParam());
+        const detail = await res.json();
+        renderPerfSummary(detail.performanceSummary);
+        renderPerfRows(detail.performanceRecent);
+        renderCampaignTree(detail.campaign);
+        await loadBidOverview();
+        await loadJobLog();
+        setStatus('已刷新');
+      } catch (e) {
+        setStatus(e.message, true);
+      }
+    });
+
+    document.getElementById('btnSyncPerf').addEventListener('click', async function () {
+      if (!currentCampaignId) return;
+      setStatus('写入效果样本…');
+      try {
+        await postJson(
+            API + '/campaigns/' + encodeURIComponent(currentCampaignId) + '/sync-performance' + getUserIdParam(),
+            {});
+        document.getElementById('btnRefreshDetail').click();
+        setStatus('已追加效果样本');
+      } catch (e) {
+        setStatus(e.message, true);
+      }
+    });
+
+    document.getElementById('btnRegenSnap').addEventListener('click', async function () {
+      if (!currentCampaignId) return;
+      setStatus('重造快照…');
+      try {
+        await postJson(
+            API + '/campaigns/' + encodeURIComponent(currentCampaignId) + '/regenerate-snapshot' + getUserIdParam(),
+            {});
+        await loadBidOverview();
+        setStatus('快照已更新');
+      } catch (e) {
+        setStatus(e.message, true);
+      }
+    });
+
+    async function runJob(regen) {
+      if (!currentCampaignId) return;
+      setStatus('执行调价…');
+      try {
+        const url =
+            API + '/campaigns/' + encodeURIComponent(currentCampaignId) + '/run-job' + getUserIdParam();
+        const data = await postJson(url, { regenerateSnapshot: !!regen });
+        if (data.status === 'error') {
+          setStatus(data.message || (data.job && data.job.errorMessage) || '失败', true);
+        } else {
+          setStatus('任务完成');
+        }
+        await loadBidOverview();
+        await loadJobLog();
+      } catch (e) {
+        setStatus(e.message, true);
+      }
+    }
+
+    document.getElementById('btnRunJob').addEventListener('click', function () { runJob(false); });
+    document.getElementById('btnRunJobRegen').addEventListener('click', function () { runJob(true); });
+
+    userIdEl.addEventListener('change', saveUserId);
+    userIdEl.addEventListener('blur', saveUserId);
+
+    try {
+      const saved = localStorage.getItem(STORAGE_USER);
+      if (saved) userIdEl.value = saved;
+    } catch (e) {}
+
+    loadCampaignList()
+        .then(function () {
+          try {
+            var h = decodeURIComponent((location.hash || '').replace(/^#/, ''));
+            if (h) {
+              openCampaign(h);
+            }
+          } catch (e) {}
+        })
+        .catch(function (e) { setStatus(e.message, true); });
+  </script>
+</body>
+</html>

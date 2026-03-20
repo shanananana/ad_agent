@@ -85,6 +85,48 @@ public class DataPathConfig {
         return getBaseDir().resolve("chat").resolve("users").resolve(sanitizeId(userId)).resolve("sessions.json");
     }
 
+    /** 出价策略目录：基础模型 B、系数 α、效果快照、任务日志 */
+    public Path getBidStrategyDir() {
+        return getBaseDir().resolve("bid");
+    }
+
+    public Path getBidBaseModelPath() {
+        return getBidStrategyDir().resolve("base_bid_model.json");
+    }
+
+    public Path getBidCoefficientsPath() {
+        return getBidStrategyDir().resolve("coefficients.json");
+    }
+
+    public Path getBidEffectSnapshotPath() {
+        return getBidStrategyDir().resolve("effect_snapshot.json");
+    }
+
+    public Path getBidCoefficientJobLogPath() {
+        return getBidStrategyDir().resolve("coefficient_job_log.json");
+    }
+
+    /** 单计划出价目录：data/bid/campaigns/{campaignId}/ */
+    public Path getBidCampaignDir(String campaignId) {
+        return getBidStrategyDir().resolve("campaigns").resolve(sanitizeId(campaignId));
+    }
+
+    public Path getBidCampaignBaseModelPath(String campaignId) {
+        return getBidCampaignDir(campaignId).resolve("base_bid_model.json");
+    }
+
+    public Path getBidCampaignCoefficientsPath(String campaignId) {
+        return getBidCampaignDir(campaignId).resolve("coefficients.json");
+    }
+
+    public Path getBidCampaignEffectSnapshotPath(String campaignId) {
+        return getBidCampaignDir(campaignId).resolve("effect_snapshot.json");
+    }
+
+    public Path getBidCampaignJobLogPath(String campaignId) {
+        return getBidCampaignDir(campaignId).resolve("coefficient_job_log.json");
+    }
+
     /** 供 getPerformanceDataPath(userId) 等使用 */
     public static String sanitizeId(String id) {
         if (id == null || id.isBlank()) return "default";

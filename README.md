@@ -67,6 +67,14 @@ mvn spring-boot:run
 - 输入问题即可对话，支持流式回复与「思考过程」展开
 - 若说出**清除长期记忆 / 清空聊天记录 / 全部清除**等且携带有效 **userId**，服务端删除对应文件后，静态页会在约 0.4 秒后**自动刷新**（并清除本地保存的 sessionId）
 
+### 4. 出价策略（B × α）看板
+
+浏览器访问：**http://localhost:8081/bid-strategy.html**
+
+- 展示各维度 **基础出价 B**、**系数 α**、**B×α** 与合成效果快照；可 **重造快照**、**手动执行调价任务**（调用 LLM 更新 α，需配置千问密钥）
+- 定时任务默认 **每小时** 跑一次（`ad-agent.bidding.cron`），可用 `ad-agent.bidding.enabled: false` 关闭
+- 设计说明：[docs/ai_design_doc/bid-coefficient-agent.md](docs/ai_design_doc/bid-coefficient-agent.md)
+
 ---
 
 ## 使用说明
@@ -95,6 +103,11 @@ mvn spring-boot:run
 |--------|------|------|
 | `ad-agent.data.base-path` | 本地数据根目录 | `./data` |
 | `ad-agent.memory.immediate-long-term-flush` | 长期记忆写入时机：`true`=每轮结束立即写入，`false`=空闲 5 分钟后写入 | `true` |
+| `ad-agent.bidding.enabled` | 是否启用自动调价助手定时任务 | `true` |
+| `ad-agent.bidding.cron` | Spring 6 域 cron（秒 分 时…），默认每小时整点 | `0 0 * * * ?` |
+| `ad-agent.bidding.alpha-min` / `alpha-max` | 系数 α 绝对上下界 | `0.5` / `1.5` |
+| `ad-agent.bidding.max-relative-change` | 单周期相对上一版 α 最大变化比例 | `0.2` |
+| `ad-agent.bidding.schedule-user-id` | 定时任务遍历该用户下所有计划分别调价；空则读全局 `campaigns.json` | `""` |
 
 ### 数据目录确认
 
@@ -188,10 +201,13 @@ ad_agent/
 ├── src/main/java/com/example/adagent/
 │   ├── AdAgentApplication.java          # 启动类
 │   ├── config/                          # 配置
-│   │   ├── DataPathConfig.java          # 数据路径（模板、按用户 base/performance、聊天、长期记忆）
-│   │   └── ChatClientConfig.java        # Spring AI ChatClient + 工具注册
+│   │   ├── DataPathConfig.java          # 数据路径（含 data/bid 出价策略文件）
+│   │   ├── ChatClientConfig.java        # Spring AI ChatClient + 工具注册 + biddingChatClient（无工具）
+│   │   ├── BiddingProperties.java       # ad-agent.bidding 配置
+│   │   └── BiddingSchedulingConfig.java # @EnableScheduling
 │   ├── controller/
 │   │   ├── AdAgentController.java       # REST：对话、会话、历史、删除、流式
+│   │   ├── BidStrategyController.java   # REST：出价 B×α 看板、任务、快照
 │   │   └── StreamEvent.java             # 流式事件（thinking / content / client）
 │   ├── service/
 │   │   └── AdChatSessionService.java    # 会话与用户绑定、创建/清除/删除、编排调用
@@ -216,6 +232,14 @@ ad_agent/
 │   │   ├── PerformanceTools.java       # queryPerformance(userId, campaignId, ...)
 │   │   ├── CampaignMutationTools.java   # addCampaign(userId, ...), adjustStrategy(userId, ...)
 │   │   └── UserPrivacyTools.java        # clearUserLongTermMemory、clearUserChatHistory（编排器同步删盘为主）
+│   ├── bidding/                         # 自动调价助手 B×α（与对话 Agent 独立）
+│   │   ├── BidStrategyRepository.java   # JSON 持久化
+│   │   ├── BidStrategyService.java      # getBaseBid / getCoefficient / getEffectiveBaseBid
+│   │   ├── EffectSnapshotGenerator.java # 合成效果快照
+│   │   ├── BidCoefficientLlmService.java
+│   │   ├── BidCoefficientJobService.java
+│   │   ├── BidCoefficientScheduledJob.java
+│   │   └── dto/                         # BaseBidModelFile, CoefficientsFile 等
 │   ├── data/                            # 数据层
 │   │   ├── AdDataRepository.java        # 基础数据：按用户 load/save，无则从模板复制
 │   │   ├── PerformanceDataRepository.java      # 效果数据：按用户生成与读写
@@ -227,7 +251,8 @@ ad_agent/
 │   ├── application.yml
 │   ├── application-secret.yml.example
 │   └── static/
-│       └── chat.html                    # 对话页（用户 ID、会话列表、历史、删除；清除成功后 SSE client → 自动刷新）
+│       ├── chat.html                    # 对话页（用户 ID、会话列表、历史、删除；清除成功后 SSE client → 自动刷新）
+│       └── bid-strategy.html            # 自动调价助手（B×α）看板
 └── data/                                # 运行时数据（可配置 base-path）
     ├── base/
     │   ├── _template_campaigns.json     # 只读模板，禁止修改
@@ -238,9 +263,14 @@ ad_agent/
     │   └── users/{userId}/performance.json     # 按用户效果数据
     ├── long_term_memory/
     │   └── {userId}.json                # 长期记忆（用户习惯/偏好）
-    └── chat/
-        ├── sessions/{sessionId}.json    # 单会话聊天记录
-        └── users/{userId}/sessions.json        # 用户会话列表索引
+    ├── chat/
+    │   ├── sessions/{sessionId}.json    # 单会话聊天记录
+    │   └── users/{userId}/sessions.json        # 用户会话列表索引
+    └── bid/                               # 出价策略（默认 .gitignore，启动时自动生成）
+        ├── base_bid_model.json            # 基础出价 B
+        ├── coefficients.json              # 系数 α
+        ├── effect_snapshot.json           # 效果快照（可合成）
+        └── coefficient_job_log.json       # 任务与 LLM 依据
 ```
 
 ---

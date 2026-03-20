@@ -14,8 +14,12 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 /**
  * 效果数据读写：支持按用户隔离（data/performance/users/{userId}/performance.json），
@@ -183,5 +187,52 @@ public class PerformanceDataRepository {
                 }
             }
         }
+    }
+
+    /** 某计划在效果文件中的明细行（未排序） */
+    public List<PerformanceData.PerformanceRow> rowsForCampaign(String userId, String campaignId) {
+        if (campaignId == null || campaignId.isBlank()) {
+            return List.of();
+        }
+        return loadPerformance(userId).getData().stream()
+                .filter(r -> campaignId.equals(r.getCampaignId()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 汇总某计划效果（与 PerformanceRow 生成逻辑一致：ROI ≈ conversions×10/cost）。
+     *
+     * @param recentRows 最多返回最近若干条明细供表格展示（按日期倒序）
+     */
+    public Map<String, Object> campaignPerformanceOverview(String userId, String campaignId, int recentRows) {
+        List<PerformanceData.PerformanceRow> all = rowsForCampaign(userId, campaignId);
+        long impressions = 0L;
+        long clicks = 0L;
+        double cost = 0.0;
+        long conversions = 0L;
+        for (PerformanceData.PerformanceRow r : all) {
+            impressions += r.getImpressions();
+            clicks += r.getClicks();
+            cost += r.getCost();
+            conversions += r.getConversions();
+        }
+        double ctr = impressions > 0 ? (double) clicks / impressions : 0.0;
+        double roi = cost > 0 ? conversions * 10.0 / cost : 0.0;
+
+        List<PerformanceData.PerformanceRow> recent = all.stream()
+                .sorted(Comparator.comparing(PerformanceData.PerformanceRow::getDate, Comparator.nullsLast(Comparator.reverseOrder())))
+                .limit(Math.max(0, recentRows))
+                .collect(Collectors.toList());
+
+        Map<String, Object> out = new HashMap<>();
+        out.put("rowCount", all.size());
+        out.put("totalImpressions", impressions);
+        out.put("totalClicks", clicks);
+        out.put("totalCost", Math.round(cost * 100) / 100.0);
+        out.put("totalConversions", conversions);
+        out.put("ctr", Math.round(ctr * 10000) / 10000.0);
+        out.put("roi", Math.round(roi * 100) / 100.0);
+        out.put("recentRows", recent);
+        return out;
     }
 }
