@@ -81,7 +81,75 @@
     .tree { font-size: 12px; color: #a9b1d6; line-height: 1.5; margin-left: 8px; }
     .tree .indent { margin-left: 16px; border-left: 1px solid #3b4261; padding-left: 10px; }
     .hidden { display: none !important; }
+    #chartPerfWrap { border: 1px solid #3b4261; border-radius: 8px; background: #16161e; }
+    button.chart-mini { padding: 4px 8px; font-size: 11px; }
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      max-width: 100%;
+    }
+    table.sticky-table {
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    table.sticky-table th.sticky-col,
+    table.sticky-table td.sticky-col {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: #16161e;
+      box-shadow: 6px 0 8px -6px rgba(0, 0, 0, 0.55);
+    }
+    table.sticky-table thead th.sticky-col {
+      z-index: 2;
+      background: #24283b;
+    }
+    table.grid-metric th.col-metric,
+    table.grid-metric td.col-metric {
+      width: 0;
+      max-width: 5.2em;
+      padding: 4px 5px;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      text-align: right;
+    }
+    table.grid-metric th.col-metric { text-align: center; line-height: 1.2; }
+    table.grid-metric th.col-spark,
+    table.grid-metric td.col-spark {
+      width: 3.75rem;
+      min-width: 3.5rem;
+      max-width: 4rem;
+      padding: 4px 2px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    table.grid-metric th.col-spark {
+      font-size: 10px;
+      font-weight: 600;
+      color: #7dcfff;
+    }
+    button.btn-spark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 4px;
+      margin: 0;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+    button.btn-spark:hover { background: #24283b; }
+    button.btn-spark:focus-visible {
+      outline: 2px solid #7aa2f7;
+      outline-offset: 1px;
+    }
+    .spark-svg { display: block; vertical-align: middle; }
+    .spark-empty { font-size: 10px; color: #565f89; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <h1>自动调价助手（B × α）</h1>
@@ -121,27 +189,59 @@
 
     <section>
       <h2>投放效果（performance 数据）</h2>
-      <p class="meta">来自 <code>performance.json</code> 中该计划 ID 的明细汇总。若无数据，可点击「生成效果样本」写入学习用合成数据。</p>
+      <p class="meta">来自 <code>performance.json</code> 中该计划 ID 的明细汇总。若无数据，可点击「生成效果样本」写入学习用合成数据。表格首列横向滚动时固定；「曲线」列为近 7 日 ROI 迷你折线，点击与「趋势」相同打开大图。</p>
       <div class="toolbar">
         <button type="button" id="btnSyncPerf" class="secondary">生成效果样本（追加 7 天）</button>
         <button type="button" id="btnRefreshDetail">刷新本页</button>
       </div>
       <div id="perfSummary" class="stat-grid"></div>
+      <h3>效果趋势</h3>
+      <p class="meta">按日聚合：整计划或当前明细行维度。竖线为最近一次<strong>成功</strong>调价任务开始日，仅作时间参考。</p>
+      <div class="toolbar">
+        <button type="button" id="btnChartCampaign">整计划趋势</button>
+        <label>指标
+          <select id="chartMetric" style="margin-left:6px;padding:4px 8px;border-radius:6px;border:1px solid #3b4261;background:#16161e;color:#c0caf5;">
+            <option value="roi">ROI</option>
+            <option value="ctr">CTR</option>
+            <option value="cost">消耗</option>
+            <option value="impressions">展示</option>
+            <option value="clicks">点击</option>
+            <option value="conversions">转化</option>
+          </select>
+        </label>
+        <label>天数
+          <select id="chartDays" style="margin-left:6px;padding:4px 8px;border-radius:6px;border:1px solid #3b4261;background:#16161e;color:#c0caf5;">
+            <option value="7">7</option>
+            <option value="14">14</option>
+            <option value="30" selected>30</option>
+            <option value="60">60</option>
+            <option value="90">90</option>
+          </select>
+        </label>
+        <button type="button" id="btnChartClose" class="secondary hidden">关闭图表</button>
+      </div>
+      <div id="chartPerfWrap" class="hidden" style="height:320px;width:100%;margin-bottom:8px;">
+        <div id="chartPerf" style="width:100%;height:100%;"></div>
+      </div>
       <h3>效果明细（最近）</h3>
-      <div style="overflow-x: auto;">
-        <table>
+      <div class="table-scroll">
+        <table class="grid-metric sticky-table">
           <thead>
             <tr>
-              <th>日期</th>
+              <th class="sticky-col">日期</th>
               <th>渠道</th>
               <th>年龄段</th>
               <th>展示</th>
               <th>点击</th>
-              <th>消耗</th>
-              <th>CTR</th>
-              <th>ROI</th>
+              <th class="col-metric">消耗</th>
+              <th class="col-metric">CTR</th>
+              <th class="col-metric">ROI</th>
+              <th>转化</th>
+              <th>创意</th>
               <th>广告组</th>
               <th>广告</th>
+              <th class="col-spark" title="近7日ROI">曲线</th>
+              <th>趋势</th>
             </tr>
           </thead>
           <tbody id="tbodyPerf"></tbody>
@@ -163,18 +263,19 @@
         <button type="button" id="btnRunJobRegen" class="secondary">重造快照并调价</button>
       </div>
       <div id="overviewMeta" class="meta"></div>
-      <div style="overflow-x: auto;">
-        <table>
+      <p class="meta">横向滚动时「人群」列固定。</p>
+      <div class="table-scroll">
+        <table class="grid-metric sticky-table">
           <thead>
             <tr>
-              <th>人群</th>
+              <th class="sticky-col">人群</th>
               <th>时段(h)</th>
               <th>设备</th>
               <th>展示</th>
               <th>点击</th>
-              <th>消耗</th>
-              <th>CTR</th>
-              <th>ROI</th>
+              <th class="col-metric">消耗</th>
+              <th class="col-metric">CTR</th>
+              <th class="col-metric">ROI</th>
               <th>B</th>
               <th>α</th>
               <th>B×α</th>
@@ -200,6 +301,10 @@
     const viewDetail = document.getElementById('viewDetail');
 
     let currentCampaignId = null;
+    /** @type {{ mode: string, row?: object }|null} */
+    let perfChartCtx = null;
+    /** 迷你折线：series[key]=数值数组；附带 _metric、_days */
+    let perfSparkMap = {};
 
     function setStatus(msg, isErr) {
       statusEl.textContent = msg || '';
@@ -209,6 +314,88 @@
     function escapeHtml(s) {
       if (s == null || s === '') return '';
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function attrEscape(s) {
+      return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/\n/g, ' ');
+    }
+
+    /** 与后端 rowDimKey 一致：adGroup|ad|creative|channel|age */
+    function perfRowDimKey(r) {
+      function z(x) { return (x != null && x !== '') ? String(x) : ''; }
+      return [z(r.adGroupId), z(r.adId), z(r.creativeId), z(r.channel), z(r.ageRange)].join('|');
+    }
+
+    function sparklineSvg(values, w, h) {
+      if (!values || values.length === 0) {
+        return '<span class="spark-empty">—</span>';
+      }
+      var pad = 2;
+      var nums = values.map(function (v) { return Number(v); }).filter(function (n) { return Number.isFinite(n); });
+      if (nums.length === 0) {
+        return '<span class="spark-empty">—</span>';
+      }
+      if (nums.length === 1) {
+        var ym = h / 2;
+        return '<svg width="' + w + '" height="' + h + '" class="spark-svg" viewBox="0 0 ' + w + ' ' + h + '"><line x1="' + pad + '" y1="' + ym + '" x2="' + (w - pad) + '" y2="' + ym + '" stroke="#7aa2f7" stroke-width="1.5"/></svg>';
+      }
+      var min = Math.min.apply(null, nums);
+      var max = Math.max.apply(null, nums);
+      var span = (max - min) || 1;
+      var pts = nums.map(function (v, i) {
+        var x = pad + (i / (nums.length - 1)) * (w - 2 * pad);
+        var y = pad + (1 - (v - min) / span) * (h - 2 * pad);
+        return (Math.round(x * 10) / 10) + ',' + (Math.round(y * 10) / 10);
+      }).join(' ');
+      return '<svg width="' + w + '" height="' + h + '" class="spark-svg" viewBox="0 0 ' + w + ' ' + h + '"><polyline fill="none" stroke="#7aa2f7" stroke-width="1.25" points="' + pts + '"/></svg>';
+    }
+
+    function sparklineButtonHtml(values, titleText) {
+      var t = attrEscape(titleText);
+      return '<button type="button" class="btn-spark" title="' + t + '" aria-label="' + t + '">' + sparklineSvg(values, 52, 20) + '</button>';
+    }
+
+    async function loadPerfSparklines() {
+      perfSparkMap = { _metric: 'roi', _days: 7 };
+      if (!currentCampaignId) return;
+      try {
+        var res = await fetch(
+            API + '/campaigns/' + encodeURIComponent(currentCampaignId) + '/performance-sparklines' + withQuery('days=7&metric=roi'));
+        if (!res.ok) return;
+        var data = await res.json();
+        var series = data.series;
+        perfSparkMap = (series && typeof series === 'object') ? series : {};
+        perfSparkMap._metric = data.metric || 'roi';
+        perfSparkMap._days = data.days != null ? data.days : 7;
+      } catch (e) {
+        perfSparkMap = { _metric: 'roi', _days: 7 };
+      }
+    }
+
+    function fmtCost(v) {
+      var n = Number(v);
+      return Number.isFinite(n) ? n.toFixed(2) : '-';
+    }
+
+    function fmtCtrRoi(v) {
+      var n = Number(v);
+      return Number.isFinite(n) ? n.toFixed(4) : '-';
+    }
+
+    /** 趋势图轴、tooltip 与当前指标一致 */
+    function formatSeriesValue(metric, val) {
+      var n = Number(val);
+      if (!Number.isFinite(n)) return '-';
+      if (metric === 'cost') return n.toFixed(2);
+      if (metric === 'ctr' || metric === 'roi') return n.toFixed(4);
+      if (metric === 'impressions' || metric === 'clicks' || metric === 'conversions') {
+        return String(Math.round(n));
+      }
+      return String(n);
     }
 
     function getUserIdParam() {
@@ -268,28 +455,186 @@
         card('明细条数', sum.rowCount) +
         card('总展示', sum.totalImpressions) +
         card('总点击', sum.totalClicks) +
-        card('总消耗', sum.totalCost) +
+        card('总消耗', fmtCost(sum.totalCost)) +
         card('转化', sum.totalConversions) +
-        card('CTR', sum.ctr) +
-        card('ROI', sum.roi);
+        card('CTR', fmtCtrRoi(sum.ctr)) +
+        card('ROI', fmtCtrRoi(sum.roi));
+    }
+
+    function metricLabel(m) {
+      var map = { roi: 'ROI', ctr: 'CTR', cost: '消耗', impressions: '展示', clicks: '点击', conversions: '转化' };
+      return map[m] || m;
+    }
+
+    function closePerfChartUI() {
+      document.getElementById('chartPerfWrap').classList.add('hidden');
+      document.getElementById('btnChartClose').classList.add('hidden');
+      perfChartCtx = null;
+      var el = document.getElementById('chartPerf');
+      if (el && window.echarts) {
+        var inst = echarts.getInstanceByDom(el);
+        if (inst) inst.dispose();
+      }
+    }
+
+    function renderPerfChart(data, titleSub) {
+      var el = document.getElementById('chartPerf');
+      if (!el || !window.echarts) {
+        setStatus('图表库未加载', true);
+        return;
+      }
+      var inst = echarts.getInstanceByDom(el);
+      if (!inst) inst = echarts.init(el, null, { renderer: 'canvas' });
+
+      var dates = data.dates || [];
+      var values = data.values || [];
+      var metric = data.metric || 'roi';
+      var ev = (data.events && data.events[0]) ? data.events[0] : null;
+      var eventDate = ev && ev.date;
+      var markLine;
+      if (eventDate && dates.indexOf(eventDate) >= 0) {
+        markLine = {
+          symbol: 'none',
+          label: { show: true, formatter: (ev && ev.label) ? ev.label : '调价', color: '#bb9af7', fontSize: 10 },
+          lineStyle: { color: '#bb9af7', type: 'dashed', width: 1 },
+          data: [{ xAxis: eventDate }]
+        };
+      }
+      var chartSub = titleSub || '';
+      if (ev && eventDate && dates.indexOf(eventDate) < 0) {
+        chartSub = (chartSub ? chartSub + ' ' : '') + '（调价日 ' + eventDate + ' 不在当前窗口）';
+      }
+
+      inst.setOption({
+        backgroundColor: 'transparent',
+        title: {
+          text: (data.scope === 'campaign' ? '整计划 · ' : '当前行 · ') + metricLabel(metric),
+          subtext: chartSub,
+          left: 8,
+          top: 4,
+          textStyle: { fontSize: 13, color: '#bb9af7', fontWeight: 600 },
+          subtextStyle: { fontSize: 11, color: chartSub.indexOf('不在当前窗口') >= 0 ? '#f7768e' : '#565f89' }
+        },
+        textStyle: { color: '#a9b1d6' },
+        grid: { left: 52, right: 20, top: chartSub ? 52 : 40, bottom: 28 },
+        tooltip: {
+          trigger: 'axis',
+          formatter: function (params) {
+            var p = params[0];
+            var v = formatSeriesValue(metric, p.data);
+            return p.axisValue + '<br/>' + p.seriesName + '：' + v;
+          }
+        },
+        xAxis: { type: 'category', data: dates, axisLabel: { color: '#565f89', fontSize: 10 } },
+        yAxis: {
+          type: 'value',
+          axisLabel: {
+            color: '#565f89',
+            fontSize: 10,
+            formatter: function (val) { return formatSeriesValue(metric, val); }
+          },
+          splitLine: { lineStyle: { color: '#3b4261' } }
+        },
+        series: [{
+          name: metricLabel(metric),
+          type: 'line',
+          smooth: true,
+          data: values,
+          itemStyle: { color: '#7aa2f7' },
+          areaStyle: { color: 'rgba(122,162,247,0.1)' },
+          markLine: markLine
+        }]
+      }, true);
+    }
+
+    function buildPerfSeriesQuery() {
+      var metric = document.getElementById('chartMetric').value;
+      var days = document.getElementById('chartDays').value;
+      var parts = ['metric=' + encodeURIComponent(metric), 'days=' + encodeURIComponent(days)];
+      if (perfChartCtx && perfChartCtx.mode === 'row' && perfChartCtx.row) {
+        var r = perfChartCtx.row;
+        parts.push('mode=row');
+        parts.push('adGroupId=' + encodeURIComponent(r.adGroupId != null ? r.adGroupId : ''));
+        parts.push('adId=' + encodeURIComponent(r.adId != null ? r.adId : ''));
+        parts.push('creativeId=' + encodeURIComponent(r.creativeId != null ? r.creativeId : ''));
+        parts.push('channel=' + encodeURIComponent(r.channel != null ? r.channel : ''));
+        parts.push('ageRange=' + encodeURIComponent(r.ageRange != null ? r.ageRange : ''));
+      } else {
+        parts.push('mode=campaign');
+      }
+      return parts.join('&');
+    }
+
+    async function refreshPerfChart() {
+      if (!currentCampaignId || !perfChartCtx) return;
+      if (!window.echarts) {
+        setStatus('图表库未加载', true);
+        return;
+      }
+      setStatus('加载趋势…');
+      try {
+        var url = API + '/campaigns/' + encodeURIComponent(currentCampaignId) + '/performance-series' + withQuery(buildPerfSeriesQuery());
+        var res = await fetch(url);
+        if (!res.ok) throw new Error((await res.text()) || '趋势接口失败');
+        var data = await res.json();
+        renderPerfChart(data, '');
+        setStatus('');
+      } catch (e) {
+        setStatus(e.message, true);
+      }
+    }
+
+    async function openPerfChart(ctx) {
+      perfChartCtx = ctx;
+      document.getElementById('chartPerfWrap').classList.remove('hidden');
+      document.getElementById('btnChartClose').classList.remove('hidden');
+      await refreshPerfChart();
     }
 
     function renderPerfRows(rows) {
       const tbody = document.getElementById('tbodyPerf');
       tbody.innerHTML = '';
+      var sm = perfSparkMap._metric || 'roi';
+      var sd = perfSparkMap._days != null ? perfSparkMap._days : 7;
       (rows || []).forEach(function (r) {
         const tr = document.createElement('tr');
+        var key = perfRowDimKey(r);
+        var vals = perfSparkMap[key];
+        if (!Array.isArray(vals)) vals = [];
+        var sparkTitle = '近' + sd + '日 ' + metricLabel(sm) + '，点击查看大图';
         tr.innerHTML =
-          '<td>' + escapeHtml(r.date) + '</td>' +
+          '<td class="sticky-col">' + escapeHtml(r.date) + '</td>' +
           '<td>' + escapeHtml(r.channel) + '</td>' +
           '<td>' + escapeHtml(r.ageRange) + '</td>' +
           '<td>' + r.impressions + '</td>' +
           '<td>' + r.clicks + '</td>' +
-          '<td>' + r.cost + '</td>' +
-          '<td>' + r.ctr + '</td>' +
-          '<td>' + r.roi + '</td>' +
+          '<td class="col-metric">' + fmtCost(r.cost) + '</td>' +
+          '<td class="col-metric">' + fmtCtrRoi(r.ctr) + '</td>' +
+          '<td class="col-metric">' + fmtCtrRoi(r.roi) + '</td>' +
+          '<td>' + (r.conversions != null ? r.conversions : 0) + '</td>' +
+          '<td>' + escapeHtml(r.creativeId != null ? r.creativeId : '') + '</td>' +
           '<td>' + escapeHtml(r.adGroupId) + '</td>' +
-          '<td>' + escapeHtml(r.adId) + '</td>';
+          '<td>' + escapeHtml(r.adId) + '</td>' +
+          '<td class="col-spark">' + sparklineButtonHtml(vals, sparkTitle) + '</td>' +
+          '<td></td>';
+        var sparkBtn = tr.querySelector('.btn-spark');
+        if (sparkBtn) {
+          sparkBtn.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            openPerfChart({ mode: 'row', row: r });
+          });
+        }
+        var tdBtn = tr.lastChild;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'secondary chart-mini';
+        btn.textContent = '趋势';
+        btn.title = '按日趋势（与大图一致）';
+        btn.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          openPerfChart({ mode: 'row', row: r });
+        });
+        tdBtn.appendChild(btn);
         tbody.appendChild(tr);
       });
     }
@@ -328,14 +673,14 @@
       (data.rows || []).forEach(function (r) {
         const tr = document.createElement('tr');
         tr.innerHTML =
-          '<td>' + escapeHtml(r.audience) + '</td>' +
+          '<td class="sticky-col">' + escapeHtml(r.audience) + '</td>' +
           '<td>' + r.hourSlot + '</td>' +
           '<td>' + escapeHtml(r.device) + '</td>' +
           '<td>' + r.impressions + '</td>' +
           '<td>' + r.clicks + '</td>' +
-          '<td>' + r.cost + '</td>' +
-          '<td>' + r.ctr + '</td>' +
-          '<td>' + r.roi + '</td>' +
+          '<td class="col-metric">' + fmtCost(r.cost) + '</td>' +
+          '<td class="col-metric">' + fmtCtrRoi(r.ctr) + '</td>' +
+          '<td class="col-metric">' + fmtCtrRoi(r.roi) + '</td>' +
           '<td>' + r.baseBid + '</td>' +
           '<td>' + r.alpha + '</td>' +
           '<td>' + r.effectiveBid + '</td>';
@@ -367,6 +712,7 @@
     async function openCampaign(campaignId) {
       saveUserId();
       currentCampaignId = campaignId;
+      closePerfChartUI();
       setStatus('加载计划详情…');
       try {
         const res = await fetch(API + '/campaigns/' + encodeURIComponent(campaignId) + '/detail' + getUserIdParam());
@@ -375,6 +721,7 @@
         document.getElementById('detailTitle').textContent =
           (detail.campaign && detail.campaign.name ? detail.campaign.name : campaignId) + ' · ' + campaignId;
         renderPerfSummary(detail.performanceSummary);
+        await loadPerfSparklines();
         renderPerfRows(detail.performanceRecent);
         renderCampaignTree(detail.campaign);
         viewList.classList.add('hidden');
@@ -389,6 +736,8 @@
     }
 
     function closeDetail() {
+      closePerfChartUI();
+      perfSparkMap = {};
       currentCampaignId = null;
       viewDetail.classList.add('hidden');
       viewList.classList.remove('hidden');
@@ -408,6 +757,24 @@
     document.getElementById('btnLoadPlans').addEventListener('click', loadCampaignList);
     document.getElementById('btnBack').addEventListener('click', closeDetail);
 
+    document.getElementById('btnChartCampaign').addEventListener('click', function () {
+      openPerfChart({ mode: 'campaign' });
+    });
+    document.getElementById('btnChartClose').addEventListener('click', closePerfChartUI);
+    document.getElementById('chartMetric').addEventListener('change', function () {
+      if (perfChartCtx) refreshPerfChart();
+    });
+    document.getElementById('chartDays').addEventListener('change', function () {
+      if (perfChartCtx) refreshPerfChart();
+    });
+    window.addEventListener('resize', function () {
+      var el = document.getElementById('chartPerf');
+      if (el && window.echarts) {
+        var inst = echarts.getInstanceByDom(el);
+        if (inst) inst.resize();
+      }
+    });
+
     document.getElementById('btnRefreshDetail').addEventListener('click', async function () {
       if (!currentCampaignId) return;
       setStatus('刷新中…');
@@ -415,6 +782,7 @@
         const res = await fetch(API + '/campaigns/' + encodeURIComponent(currentCampaignId) + '/detail' + getUserIdParam());
         const detail = await res.json();
         renderPerfSummary(detail.performanceSummary);
+        await loadPerfSparklines();
         renderPerfRows(detail.performanceRecent);
         renderCampaignTree(detail.campaign);
         await loadBidOverview();
