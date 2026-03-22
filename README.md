@@ -1,5 +1,7 @@
 # ad_agent
 
+[更新日志（CHANGELOG）](CHANGELOG.md)
+
 - 广告投放垂类 Agent：使用自然语言做投放效果查询、投放计划与策略建议，动态修改投放计划。支持多用户隔离、长期记忆与聊天记录持久化（学习项目，数据为本地/测试数据）。
 - 自动调价助手: 基于定时任务+模型做最细策略粒度的投放效果分析 动态调整出价系数 提升ROI
 
@@ -248,7 +250,7 @@ ad_agent/
 │   │   └── BiddingSchedulingConfig.java # @EnableScheduling
 │   ├── controller/
 │   │   ├── AdAgentController.java       # REST：对话、会话、历史、删除、流式
-│   │   ├── BidStrategyController.java   # REST：计划列表/详情/效果、按计划 B×α、job-log、快照
+│   │   ├── BidStrategyController.java   # REST：计划列表/详情/效果、performance-series、performance-sparklines、按计划 B×α、job-log、快照
 │   │   └── StreamEvent.java             # 流式事件（thinking / content / client）
 │   ├── service/
 │   │   └── AdChatSessionService.java    # 会话与用户绑定、创建/清除/删除、编排调用
@@ -279,6 +281,7 @@ ad_agent/
 │   │   ├── EffectSnapshotGenerator.java # 合成效果快照
 │   │   ├── BidCoefficientLlmService.java
 │   │   ├── BidCoefficientJobService.java
+│   │   ├── CampaignPerformanceSeriesService.java  # 按日趋势聚合 + 调价事件
 │   │   ├── BidCoefficientScheduledJob.java
 │   │   └── dto/                         # BaseBidModelFile, CoefficientsFile 等
 │   ├── data/                            # 数据层

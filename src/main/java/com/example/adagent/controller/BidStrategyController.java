@@ -2,6 +2,7 @@ package com.example.adagent.controller;
 
 import com.example.adagent.bidding.BidCoefficientJobService;
 import com.example.adagent.bidding.BidStrategyRepository;
+import com.example.adagent.bidding.CampaignPerformanceSeriesService;
 import com.example.adagent.bidding.dto.BaseBidModelFile;
 import com.example.adagent.bidding.dto.CoefficientJobLogFile;
 import com.example.adagent.bidding.dto.CoefficientsFile;
@@ -28,16 +29,19 @@ public class BidStrategyController {
     private final BidCoefficientJobService bidCoefficientJobService;
     private final AdDataRepository adDataRepository;
     private final PerformanceDataRepository performanceDataRepository;
+    private final CampaignPerformanceSeriesService campaignPerformanceSeriesService;
 
     public BidStrategyController(
             BidStrategyRepository bidStrategyRepository,
             BidCoefficientJobService bidCoefficientJobService,
             AdDataRepository adDataRepository,
-            PerformanceDataRepository performanceDataRepository) {
+            PerformanceDataRepository performanceDataRepository,
+            CampaignPerformanceSeriesService campaignPerformanceSeriesService) {
         this.bidStrategyRepository = bidStrategyRepository;
         this.bidCoefficientJobService = bidCoefficientJobService;
         this.adDataRepository = adDataRepository;
         this.performanceDataRepository = performanceDataRepository;
+        this.campaignPerformanceSeriesService = campaignPerformanceSeriesService;
     }
 
     /** 兼容：全局 B×α（data/bid 根目录） */
@@ -119,6 +123,49 @@ public class BidStrategyController {
             @RequestParam(value = "userId", required = false) String userId) {
         requireCampaign(normalizeUserId(userId), campaignId);
         return buildBidOverview(campaignId);
+    }
+
+    /**
+     * 按日趋势：mode=campaign 整计划汇总；mode=row 时按维度过滤（与明细行一致）。
+     * metric: roi | ctr | cost | impressions | clicks | conversions；竖线为任务日志中**最新在前**列表里第一条成功调价的 startedAt 所在日。
+     */
+    @GetMapping("/campaigns/{campaignId}/performance-series")
+    public Map<String, Object> campaignPerformanceSeries(
+            @PathVariable String campaignId,
+            @RequestParam(value = "userId", required = false) String userId,
+            @RequestParam(value = "mode", defaultValue = "campaign") String mode,
+            @RequestParam(value = "adGroupId", required = false) String adGroupId,
+            @RequestParam(value = "adId", required = false) String adId,
+            @RequestParam(value = "creativeId", required = false) String creativeId,
+            @RequestParam(value = "channel", required = false) String channel,
+            @RequestParam(value = "ageRange", required = false) String ageRange,
+            @RequestParam(value = "days", defaultValue = "30") int days,
+            @RequestParam(value = "metric", defaultValue = "roi") String metric) {
+        requireCampaign(normalizeUserId(userId), campaignId);
+        boolean aggregateCampaign = !"row".equalsIgnoreCase(mode);
+        return campaignPerformanceSeriesService.buildSeries(
+                normalizeUserId(userId),
+                campaignId,
+                adGroupId,
+                adId,
+                creativeId,
+                channel,
+                ageRange,
+                days,
+                metric,
+                aggregateCampaign);
+    }
+
+    /** 效果明细行维度对应的近 N 日指标序列（默认 ROI、7 天），供表格迷你折线。 */
+    @GetMapping("/campaigns/{campaignId}/performance-sparklines")
+    public Map<String, Object> campaignPerformanceSparklines(
+            @PathVariable String campaignId,
+            @RequestParam(value = "userId", required = false) String userId,
+            @RequestParam(value = "days", defaultValue = "7") int days,
+            @RequestParam(value = "metric", defaultValue = "roi") String metric) {
+        requireCampaign(normalizeUserId(userId), campaignId);
+        return campaignPerformanceSeriesService.buildRowSparklines(
+                normalizeUserId(userId), campaignId, days, metric);
     }
 
     @GetMapping("/campaigns/{campaignId}/job-log")
