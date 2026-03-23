@@ -1,6 +1,5 @@
 package com.example.adagent.agent.planning;
 
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,16 +7,18 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * <strong>行动规划入口</strong>：根据意图识别结果中的 {@code needsTool} 在
+ * {@link ReActService}（需工具）与 {@link CoTReasoningService}（纯推理）之间选择，产出结构化执行计划。
+ */
 @Service
 public class PlanningService {
 
     private static final Logger logger = LoggerFactory.getLogger(PlanningService.class);
-    private final ChatClient chatClient;
     private final CoTReasoningService cotReasoningService;
     private final ReActService reactService;
 
-    public PlanningService(ChatClient chatClient, CoTReasoningService cotReasoningService, ReActService reactService) {
-        this.chatClient = chatClient;
+    public PlanningService(CoTReasoningService cotReasoningService, ReActService reactService) {
         this.cotReasoningService = cotReasoningService;
         this.reactService = reactService;
     }
@@ -30,6 +31,9 @@ public class PlanningService {
         return cotReasoningService.createCoTPlan(intentType, userInput);
     }
 
+    /**
+     * 单轮规划结果：规划类型（如 CoT / ReAct）、步骤列表、所需工具 Bean 名称列表、面向展示的推理摘要。
+     */
     public static class ExecutionPlan {
         private final String planType;
         private final List<String> steps;

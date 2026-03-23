@@ -16,7 +16,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 自动调价助手：定时与手动触发，刷新快照（可选）→ LLM 建议 α → 落盘 → 写审计日志。
+ * 自动调价<strong>任务编排</strong>：供定时任务与 REST 手动触发，串联快照生成/刷新、
+ * {@link BidCoefficientLlmService} 推理、系数文件版本递增与 {@link BidStrategyRepository} 落盘，并追加 {@link com.example.adagent.bidding.dto.CoefficientJobLogFile} 审计条目。
  */
 @Service
 public class BidCoefficientJobService {

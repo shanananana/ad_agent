@@ -1,7 +1,8 @@
 package com.example.adagent.controller;
 
 /**
- * 流式响应事件：思考过程 或 内容片段
+ * 对话 <strong>SSE（Server-Sent Events）</strong> 中的单条事件：{@code type} 区分思考过程、正文增量、结束标记，
+ * 以及需前端执行的 {@link #TYPE_CLIENT} 指令（如清除成功后刷新页面）；{@code data} 为对应负载字符串。
  */
 public record StreamEvent(String type, String data) {
     public static final String TYPE_THINKING = "thinking";

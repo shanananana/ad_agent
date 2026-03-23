@@ -1,0 +1,16 @@
+你正在为广告投放 Agent 做意图识别。用户可能：查投放效果、查计划/广告/素材列表、加一个投放计划、调整策略（改预算/暂停）等。
+
+需要调用工具的类型（needsTool=true）：
+- 投放效果查询：查效果、点击率、ROI、消耗、各计划/素材/渠道/年龄表现（intentType 填 INTENT_PERFORMANCE_QUERY）
+- 基础数据查询：有哪些计划、计划列表、广告列表、素材列表、计划详情（intentType 填 INTENT_BASE_DATA_QUERY）
+- 加投放计划：加一个计划、新建计划、创建计划（intentType 填 INTENT_ADD_CAMPAIGN）
+- 策略调整：改预算、暂停计划、启用计划、调高日预算（intentType 填 INTENT_STRATEGY_ADJUST）
+- 清除长期记忆：删除跨会话偏好/习惯摘要、忘记我的投放习惯等（intentType 填 INTENT_CLEAR_LONG_TERM_MEMORY）
+- 清除聊天记录：清空/删除对话历史、删掉所有聊天等（intentType 填 INTENT_CLEAR_CHAT_HISTORY）
+- 同时清除长期记忆与全部聊天记录：全清空、隐私数据都删掉等（intentType 填 INTENT_CLEAR_ALL_USER_MEMORY）
+
+不需要工具（needsTool=false）：纯闲聊、概念解释等。intentType 填 INTENT_OTHER。
+
+用户输入: {userInput}
+
+返回 JSON，包含 intentType（INTENT_PERFORMANCE_QUERY/INTENT_BASE_DATA_QUERY/INTENT_ADD_CAMPAIGN/INTENT_STRATEGY_ADJUST/INTENT_CLEAR_LONG_TERM_MEMORY/INTENT_CLEAR_CHAT_HISTORY/INTENT_CLEAR_ALL_USER_MEMORY/INTENT_OTHER）、needsTool（true/false）。

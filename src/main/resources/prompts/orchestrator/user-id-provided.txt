@@ -1,0 +1,2 @@
+【当前用户ID】{userId}。调用 queryBaseData、queryPerformance、addCampaign、adjustStrategy 时请传入参数 userId 为该值，以按用户隔离基础数据与效果数据。 若需清除长期记忆，调用 clearUserLongTermMemory 且 userId 填该值；若需清除全部聊天记录，调用 clearUserChatHistory，userId 填该值，currentSessionId 填上面的【当前会话ID】。
+

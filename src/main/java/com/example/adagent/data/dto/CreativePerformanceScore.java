@@ -1,7 +1,8 @@
 package com.example.adagent.data.dto;
 
 /**
- * 按素材聚合后的效果得分，用于 prompt 推荐等场景。
+ * 按 <strong>素材维度</strong>聚合后的简易效果得分（如展示/点击加权），用于「智能生成描述」时
+ * 优先选取高表现素材文案作参考，非完整 OLAP 指标模型。
  */
 public class CreativePerformanceScore {
 

@@ -18,8 +18,8 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
- * 基础数据读写：按用户隔离，单文件 data/base/users/{userId}/campaigns.json。
- * 只读模板 data/base/_template_campaigns.json 禁止修改；当前用户无文件时从模板复制一份（带 uid），再读。
+ * <strong>投放基础数据</strong>仓库：按 {@code userId} 读写 {@code data/base/users/.../campaigns.json}，无文件时从
+ * {@code _template_campaigns.json} 复制初始化；同时维护全局 {@code campaigns.json} 兼容路径。
  */
 @Repository
 public class AdDataRepository {

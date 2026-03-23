@@ -15,7 +15,8 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * 按计划（可选细分维度）从 performance 数据按日聚合，供趋势折线图与调价事件竖线。
+ * <strong>计划效果时序</strong>：从 {@link com.example.adagent.data.PerformanceDataRepository} 读取明细，按日聚合展示/点击/消耗/ROI，
+ * 并叠加调价成功日等事件标记，供 {@code bid-strategy.html} 折线图与竖线使用。
  */
 @Service
 public class CampaignPerformanceSeriesService {

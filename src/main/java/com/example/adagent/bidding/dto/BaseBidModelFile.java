@@ -5,6 +5,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 自动调价 <strong>基础出价 B</strong> 的 JSON 根结构，对应计划目录或全局下的 {@code base_bid_model.json}；
+ * {@link BaseBidEntry} 为人群×时段×设备 网格中一格的 {@code baseBid}。
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BaseBidModelFile {
 
@@ -36,6 +40,7 @@ public class BaseBidModelFile {
         this.entries = entries != null ? entries : new ArrayList<>();
     }
 
+    /** 单维度格上的基础出价 {@code B}，维度键继承自 {@link BidDimensionRow}。 */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class BaseBidEntry extends BidDimensionRow {
         private double baseBid;

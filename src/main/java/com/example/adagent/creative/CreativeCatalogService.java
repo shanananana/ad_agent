@@ -14,6 +14,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * <strong>创意与内容目录</strong>业务封装：基于 {@link com.example.adagent.data.AdDataRepository}、
+ * {@link com.example.adagent.data.GlobalCreativeRepository}、{@link com.example.adagent.data.ContentCatalogRepository}
+ * 组装广告组、全局素材、内容库等前端下拉与绑定所需数据。
+ */
 @Service
 public class CreativeCatalogService {
 

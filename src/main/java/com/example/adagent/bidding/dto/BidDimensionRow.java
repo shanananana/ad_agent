@@ -5,7 +5,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.Objects;
 
 /**
- * 出价策略维度：人群 × 时段(0-23) × 设备。
+ * 自动调价 <strong>B×α 网格</strong>的维度键：人群（audience）、小时槽（0–23）、设备（device），
+ * 作为 {@link BaseBidModelFile.BaseBidEntry}、{@link CoefficientsFile.CoefficientEntry}、{@link EffectSnapshotFile.EffectSnapshotEntry} 的公共父类字段载体。
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BidDimensionRow {

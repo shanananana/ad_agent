@@ -1,5 +1,7 @@
 package com.example.adagent.agent.perception;
 
+import com.example.adagent.prompt.ClasspathPromptLoader;
+import com.example.adagent.prompt.PromptResourcePaths;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -13,14 +15,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 广告域意图识别：效果查询、基础数据查询、加计划、策略调整等。
+ * 广告域<strong>意图识别</strong>：调用 LLM 判定用户本轮意图类型（效果/基础数据/加计划/改策略/
+ * 清除长期记忆或聊天记录等），并输出是否需走工具链；提示中注入长期记忆与最近对话以识别简短确认类回复。
  */
 @Service
 public class IntentRecognitionService {
 
     private static final Logger logger = LoggerFactory.getLogger(IntentRecognitionService.class);
     private final ChatClient chatClient;
-    private final PromptTemplate intentPromptTemplate;
     private final PromptTemplate intentWithMemoryPromptTemplate;
 
     private static final Pattern INTENT_PATTERN = Pattern.compile("\"intentType\"\\s*:\\s*\"([^\"]+)\"", Pattern.CASE_INSENSITIVE);
@@ -28,51 +30,9 @@ public class IntentRecognitionService {
     private static final Pattern BOOL_PATTERN = Pattern.compile("\"(userExpressedSegmentPreference|needClarification|segmentByAge|segmentByRegion|segmentByDevice)\"\\s*:\\s*(true|false)", Pattern.CASE_INSENSITIVE);
     private static final Pattern SUGGESTED_MSG_PATTERN = Pattern.compile("\"suggestedClarificationMessage\"\\s*:\\s*\"([^\"]*)\"", Pattern.CASE_INSENSITIVE);
 
-    public IntentRecognitionService(ChatClient chatClient) {
+    public IntentRecognitionService(ChatClient chatClient, ClasspathPromptLoader classpathPromptLoader) {
         this.chatClient = chatClient;
-        this.intentPromptTemplate = new PromptTemplate("""
-            你正在为广告投放 Agent 做意图识别。用户可能：查投放效果、查计划/广告/素材列表、加一个投放计划、调整策略（改预算/暂停）等。
-            
-            需要调用工具的类型（needsTool=true）：
-            - 投放效果查询：查效果、点击率、ROI、消耗、各计划/素材/渠道/年龄表现（intentType 填 INTENT_PERFORMANCE_QUERY）
-            - 基础数据查询：有哪些计划、计划列表、广告列表、素材列表、计划详情（intentType 填 INTENT_BASE_DATA_QUERY）
-            - 加投放计划：加一个计划、新建计划、创建计划（intentType 填 INTENT_ADD_CAMPAIGN）
-            - 策略调整：改预算、暂停计划、启用计划、调高日预算（intentType 填 INTENT_STRATEGY_ADJUST）
-            - 清除长期记忆：删除跨会话偏好/习惯摘要、忘记我的投放习惯等（intentType 填 INTENT_CLEAR_LONG_TERM_MEMORY）
-            - 清除聊天记录：清空/删除对话历史、删掉所有聊天等（intentType 填 INTENT_CLEAR_CHAT_HISTORY）
-            - 同时清除长期记忆与全部聊天记录：全清空、隐私数据都删掉等（intentType 填 INTENT_CLEAR_ALL_USER_MEMORY）
-            
-            不需要工具（needsTool=false）：纯闲聊、概念解释等。intentType 填 INTENT_OTHER。
-            
-            用户输入: {userInput}
-            
-            返回 JSON，包含 intentType（INTENT_PERFORMANCE_QUERY/INTENT_BASE_DATA_QUERY/INTENT_ADD_CAMPAIGN/INTENT_STRATEGY_ADJUST/INTENT_CLEAR_LONG_TERM_MEMORY/INTENT_CLEAR_CHAT_HISTORY/INTENT_CLEAR_ALL_USER_MEMORY/INTENT_OTHER）、needsTool（true/false）。
-            """);
-        this.intentWithMemoryPromptTemplate = new PromptTemplate("""
-            你正在为广告投放 Agent 做意图识别。用户可能：查投放效果、查计划/广告/素材列表、加一个投放计划、调整策略（改预算/暂停）等。
-            
-            需要调用工具的类型（needsTool=true）：
-            - 投放效果查询：intentType 填 INTENT_PERFORMANCE_QUERY
-            - 基础数据查询：intentType 填 INTENT_BASE_DATA_QUERY
-            - 加投放计划：intentType 填 INTENT_ADD_CAMPAIGN
-            - 策略调整：intentType 填 INTENT_STRATEGY_ADJUST
-            - 仅清除长期记忆（跨会话偏好/习惯文件）：intentType 填 INTENT_CLEAR_LONG_TERM_MEMORY
-            - 仅清除聊天记录（本地全部会话与对话文件）：intentType 填 INTENT_CLEAR_CHAT_HISTORY
-            - 长期记忆与聊天记录都要清除：intentType 填 INTENT_CLEAR_ALL_USER_MEMORY
-            不需要工具（needsTool=false）：纯闲聊、概念解释等。intentType 填 INTENT_OTHER。
-            
-            结合【最近对话】识别简短确认：若存在【最近对话】，且用户当前输入是对上一轮助手提问的简短肯定（如「需要」「好的」「可以」「行」「创建」「确认」等），必须结合最近对话判断意图。例如：上一轮助手问「是否立即为您创建这个计划」「是否需要按某方式创建」等且用户表示肯定，则 intentType 填 INTENT_ADD_CAMPAIGN，needsTool 填 true；上一轮在问是否查询某计划效果等且用户肯定，则填对应查询类意图。不要仅因用户输入过短就判为 INTENT_OTHER。
-            
-            【该用户的历史偏好/习惯】
-            {longTermContext}
-            
-            【最近对话】
-            {conversationContext}
-            
-            用户输入: {userInput}
-            
-            返回 JSON，必须包含：intentType、needsTool。若为 INTENT_ADD_CAMPAIGN 还需包含：userExpressedSegmentPreference（true/false）、needClarification（true/false）、suggestedClarificationMessage（字符串，追问话术；若无需追问则填空字符串""）。若用户明确说了拆分维度，可包含 segmentByAge、segmentByRegion、segmentByDevice（true/false）。
-            """);
+        this.intentWithMemoryPromptTemplate = classpathPromptLoader.loadTemplate(PromptResourcePaths.INTENT_WITH_MEMORY);
     }
 
     public IntentResult recognizeIntent(String userInput) {
@@ -148,11 +108,17 @@ public class IntentRecognitionService {
         while (bm.find()) {
             String key = bm.group(1).toLowerCase();
             boolean val = "true".equalsIgnoreCase(bm.group(2));
-            if ("userexpressedsegmentpreference".equals(key)) userExpressedSegmentPreference = val;
-            else if ("needclarification".equals(key)) needClarification = val;
-            else if ("segmentbyage".equals(key)) segmentByAge = val;
-            else if ("segmentbyregion".equals(key)) segmentByRegion = val;
-            else if ("segmentbydevice".equals(key)) segmentByDevice = val;
+            if ("userexpressedsegmentpreference".equals(key)) {
+                userExpressedSegmentPreference = val;
+            } else if ("needclarification".equals(key)) {
+                needClarification = val;
+            } else if ("segmentbyage".equals(key)) {
+                segmentByAge = val;
+            } else if ("segmentbyregion".equals(key)) {
+                segmentByRegion = val;
+            } else if ("segmentbydevice".equals(key)) {
+                segmentByDevice = val;
+            }
         }
         Matcher sm = SUGGESTED_MSG_PATTERN.matcher(content);
         if (sm.find()) {
@@ -164,7 +130,9 @@ public class IntentRecognitionService {
     }
 
     private static String unescapeJsonString(String s) {
-        if (s == null) return "";
+        if (s == null) {
+            return "";
+        }
         return s.replace("\\n", "\n").replace("\\\"", "\"");
     }
 
@@ -236,15 +204,41 @@ public class IntentRecognitionService {
             return new IntentResult("INTENT_OTHER", false, userInput);
         }
 
-        public String getIntentType() { return intentType; }
-        public boolean isNeedsTool() { return needsTool; }
-        public String getOriginalInput() { return originalInput; }
-        public Boolean getSegmentByAge() { return segmentByAge; }
-        public Boolean getSegmentByRegion() { return segmentByRegion; }
-        public Boolean getSegmentByDevice() { return segmentByDevice; }
-        public boolean isUserExpressedSegmentPreference() { return userExpressedSegmentPreference; }
-        public boolean isNeedClarification() { return needClarification; }
-        public String getSuggestedClarificationMessage() { return suggestedClarificationMessage; }
+        public String getIntentType() {
+            return intentType;
+        }
+
+        public boolean isNeedsTool() {
+            return needsTool;
+        }
+
+        public String getOriginalInput() {
+            return originalInput;
+        }
+
+        public Boolean getSegmentByAge() {
+            return segmentByAge;
+        }
+
+        public Boolean getSegmentByRegion() {
+            return segmentByRegion;
+        }
+
+        public Boolean getSegmentByDevice() {
+            return segmentByDevice;
+        }
+
+        public boolean isUserExpressedSegmentPreference() {
+            return userExpressedSegmentPreference;
+        }
+
+        public boolean isNeedClarification() {
+            return needClarification;
+        }
+
+        public String getSuggestedClarificationMessage() {
+            return suggestedClarificationMessage;
+        }
 
         @Override
         public String toString() {

@@ -14,8 +14,9 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 
 /**
- * spring-ai-alibaba-dashscope 1.0.0.x 未把 {@code spring.ai.dashscope.read-timeout} 接到 {@code DashScopeApi}，
- * 通过 Boot 的全局 {@link RestClientCustomizer} 把读超时落到 {@link org.springframework.web.client.RestClient}。
+ * <strong>DashScope HTTP 读超时</strong>补偿配置：文生图等调用耗时较长时，避免默认 RestClient 过早超时。
+ * <p>因 spring-ai-alibaba-dashscope 部分版本未把 {@code spring.ai.dashscope.read-timeout} 接到 {@code DashScopeApi}，
+ * 此处通过全局 {@link RestClientCustomizer} 将读超时落到 {@link org.springframework.web.client.RestClient}。</p>
  */
 @Configuration
 @ConditionalOnClass(DashScopeConnectionProperties.class)

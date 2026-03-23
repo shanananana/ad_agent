@@ -11,7 +11,8 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Component;
 
 /**
- * 计划与策略变更工具：加计划、改策略；变更后立即写基础数据并生成效果数据写本地。
+ * Spring AI <strong>写操作工具</strong>：新建计划、调整预算与启停等，调用后更新 {@code campaigns.json} 并按规则生成/更新
+ * 对应 {@code performance.json} 明细（学习项目中的本地模拟，生产需审批与真实投放 API）。
  */
 @Component
 public class CampaignMutationTools {

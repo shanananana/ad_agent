@@ -2,17 +2,21 @@ package com.example.adagent.agent.memory;
 
 import com.example.adagent.data.LongTermMemoryRepository;
 import com.example.adagent.data.dto.LongTermMemoryFile;
+import com.example.adagent.prompt.ClasspathPromptLoader;
+import com.example.adagent.prompt.PromptResourcePaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * 长期记忆服务：按用户分文件存储，检索最近记忆；对话结束后经 LLM 判断是否与用户习惯/投放偏好相关，相关则写入。
+ * <strong>长期记忆</strong>：按 {@code userId} 读写 {@code data/long_term_memory/{userId}.json}，
+ * 检索时取最近若干条注入上下文；每轮结束后由 LLM 判断是否应将本轮信息摘要为新的长期记忆并做去重合并。
  */
 @Service
 public class LongTermMemoryService {
@@ -22,10 +26,15 @@ public class LongTermMemoryService {
 
     private final LongTermMemoryRepository repository;
     private final ChatClient chatClient;
+    private final ClasspathPromptLoader classpathPromptLoader;
 
-    public LongTermMemoryService(LongTermMemoryRepository repository, ChatClient chatClient) {
+    public LongTermMemoryService(
+            LongTermMemoryRepository repository,
+            ChatClient chatClient,
+            ClasspathPromptLoader classpathPromptLoader) {
         this.repository = repository;
         this.chatClient = chatClient;
+        this.classpathPromptLoader = classpathPromptLoader;
     }
 
     /**
@@ -58,10 +67,9 @@ public class LongTermMemoryService {
                             .map(e -> "- " + (e.getSummary() != null ? e.getSummary() : ""))
                             .filter(s -> !"- ".equals(s))
                             .collect(Collectors.joining("\n"));
-            String prompt = JUDGE_AND_SUMMARIZE_PROMPT
-                    + "\n\n【该用户已有长期记忆（最近几条）】\n" + recentBlock
-                    + "\n\n若本次对话提炼出的偏好/习惯与上述任一条重复或高度相似（例如同是「关注计划c2」「偏好追加预算」等），请直接写「不需要保存」和「摘要：无」，避免重复写入。"
-                    + "\n\n近期对话摘要：\n" + conversationSummary;
+            String prompt = classpathPromptLoader.renderTemplate(
+                    PromptResourcePaths.LONG_TERM_MEMORY_JUDGE,
+                    Map.of("recentMemoriesBlock", recentBlock, "conversationSummary", conversationSummary));
             String judgment = chatClient.prompt()
                     .user(prompt)
                     .call()
@@ -145,17 +153,6 @@ public class LongTermMemoryService {
         }
         return s.isBlank() ? null : s;
     }
-
-    private static final String JUDGE_AND_SUMMARIZE_PROMPT = """
-        请判断下面这段「近期对话摘要」是否包含与「用户习惯」或「投放偏好」相关、值得长期记住的内容。
-        
-        值得保存的内容包括：用户常查的计划ID、预算偏好、关注的指标（如CTR/ROI）、偏好的渠道或年龄段、投放目标（拉新/转化/专辑推广等）、用户问法习惯等。
-        纯闲聊、一次性问答、与投放无关的内容不需要保存。
-        
-        请用两行回答：
-        第一行：仅写「需要保存」或「不需要保存」。
-        第二行：若需要保存，写「摘要：」后跟一句简短摘要（只保留偏好/习惯相关）；若不需要则写「摘要：无」。
-        """;
 
     public static class MemorySummary {
         private final String sessionId;
