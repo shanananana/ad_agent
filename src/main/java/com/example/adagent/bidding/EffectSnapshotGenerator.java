@@ -8,7 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 学习项目：按固定维度网格生成合成效果快照，使 CTR/ROI 有差异供 LLM 调价。
+ * <strong>合成效果快照</strong>生成器（演示用）：按与 {@link BidStrategyRepository} 一致的维度网格随机生成展示/点击/ROI 等，
+ * 使无真实数仓时仍可为 {@link BidCoefficientLlmService} 提供可区分的输入；可选 {@code campaignId} 作种子以区分计划。
  */
 @Component
 public class EffectSnapshotGenerator {

@@ -5,6 +5,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 自动调价<strong>任务审计日志</strong> JSON 根对象（{@code coefficient_job_log.json}）：
+ * 按时间顺序记录每次任务的计划 ID、成败、系数文件版本、LLM 说明与程序生成的 α 涨跌概要等。
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class CoefficientJobLogFile {
 
@@ -18,6 +22,7 @@ public class CoefficientJobLogFile {
         this.jobs = jobs != null ? jobs : new ArrayList<>();
     }
 
+    /** 单次调价任务一条记录：标识、时间、输入摘要、版本前后、LLM 与程序侧说明。 */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class CoefficientJobEntry {
         private String jobId;

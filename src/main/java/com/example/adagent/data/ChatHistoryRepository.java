@@ -22,7 +22,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * 聊天记录持久化：按会话存 data/chat/sessions/{sessionId}.json，按用户索引 data/chat/users/{userId}/sessions.json
+ * <strong>聊天记录</strong>持久化：会话文件 {@code data/chat/sessions/{sessionId}.json} + 用户索引
+ * {@code data/chat/users/{userId}/sessions.json}；支持追加消息、列举会话、删除单会话及按用户批量清除（含目录扫描防漏删）。
  */
 @Repository
 public class ChatHistoryRepository {

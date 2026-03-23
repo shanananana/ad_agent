@@ -7,7 +7,8 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 /**
- * 供实时竞价层查询：B、α、生效基础价 B×α（本仓库不实现 RTB，仅预留 API）。
+ * 出价策略<strong>查询门面</strong>：按人群×时段×设备读取 {@link com.example.adagent.bidding.dto.BaseBidModelFile} 与
+ * {@link com.example.adagent.bidding.dto.CoefficientsFile}，计算生效价 B×α；本仓库不设 RTB 实时竞价，仅供演示或后续扩展。
  */
 @Service
 public class BidStrategyService {

@@ -3,7 +3,8 @@ package com.example.adagent.creative.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * 根据高表现素材与当前内容，请求 LLM 生成文生图 prompt。
+ * 「智能生成描述」<strong>请求体</strong>：携带 {@code userId}、可选计划/广告组/内容库 ID、版位代码、用户草稿等，
+ * 由 {@link com.example.adagent.creative.CreativePromptSuggestService} 拉取高表现素材并拼装 PromptTemplate。
  */
 public class SuggestPromptRequest {
 

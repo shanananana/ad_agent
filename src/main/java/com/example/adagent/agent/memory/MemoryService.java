@@ -12,8 +12,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * 统一记忆服务：短期记忆（会话对话）+ 长期记忆（按用户分文件）+ 聊天记录持久化。
- * 长期记忆写入时机由配置 ad-agent.memory.immediate-long-term-flush 控制。
+ * <strong>记忆统一门面</strong>：编排层通过本服务读写短期记忆（会话内多轮）、长期记忆（跨会话偏好摘要）
+ * 与聊天记录文件；长期记忆是否在每轮结束立即落盘由 {@code ad-agent.memory.immediate-long-term-flush} 控制。
  */
 @Service
 public class MemoryService {

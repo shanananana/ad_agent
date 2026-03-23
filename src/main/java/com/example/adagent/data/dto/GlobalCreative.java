@@ -3,7 +3,8 @@ package com.example.adagent.data.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
- * 全局素材（创意）目录中的一条记录，{@code id} 为 UUID，与广告组 {@code creativeIds}、效果数据 {@code creativeId} 一致。
+ * <strong>全局素材目录</strong>中的单条创意：{@code id} 为 UUID，与 {@link CampaignBase.AdGroup#getCreativeIds()}、
+ * 效果数据 {@link PerformanceData.PerformanceRow#getCreativeId()} 引用同一标识；可含标题、描述、持久化图片 URL 等。
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GlobalCreative {

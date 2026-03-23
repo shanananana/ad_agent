@@ -9,7 +9,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 自动调价助手：定时拉数（可选合成快照）并由 LLM 更新 α；默认每小时。可通过 ad-agent.bidding.enabled=false 关闭。
+ * 自动调价<strong>定时任务</strong>：按 {@code ad-agent.bidding.cron} 触发，遍历配置用户下各计划（或全局计划列表），
+ * 调用 {@link BidCoefficientJobService} 拉取/合成效果快照并由 LLM 更新 α；可通过 {@code ad-agent.bidding.enabled=false} 关闭。
  */
 @Component
 public class BidCoefficientScheduledJob {

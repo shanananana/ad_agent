@@ -12,6 +12,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * <strong>工具执行层</strong>：基于已注册 Spring AI 工具的 {@link ChatClient}，将增强后的用户提示交给模型，
+ * 由模型发起 {@code queryBaseData}、{@code queryPerformance}、{@code addCampaign} 等调用并返回自然语言回复。
+ * <p>提供同步整段调用与 Reactor 流式调用两种形态，流式场景受缓冲区上限保护。</p>
+ */
 @Service
 public class ToolExecutionService {
 

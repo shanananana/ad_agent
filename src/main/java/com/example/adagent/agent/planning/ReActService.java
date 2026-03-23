@@ -1,6 +1,7 @@
 package com.example.adagent.agent.planning;
 
-import org.springframework.ai.chat.client.ChatClient;
+import com.example.adagent.prompt.ClasspathPromptLoader;
+import com.example.adagent.prompt.PromptResourcePaths;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,11 +12,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * <strong>ReAct 规划</strong>：将意图类型映射到一组 Spring AI 工具名，并加载 ReAct 步骤与推理模板，
+ * 供需要查数、改计划或清隐私等多步工具调用的场景使用。
+ */
 @Service
 public class ReActService {
 
     private static final Logger logger = LoggerFactory.getLogger(ReActService.class);
-    private final ChatClient chatClient;
 
     private static final Map<String, List<String>> INTENT_TO_TOOLS = new HashMap<>();
     static {
@@ -28,24 +32,28 @@ public class ReActService {
         INTENT_TO_TOOLS.put("INTENT_CLEAR_ALL_USER_MEMORY", Arrays.asList("clearUserLongTermMemory", "clearUserChatHistory"));
     }
 
-    public ReActService(ChatClient chatClient) {
-        this.chatClient = chatClient;
+    private final ClasspathPromptLoader classpathPromptLoader;
+
+    public ReActService(ClasspathPromptLoader classpathPromptLoader) {
+        this.classpathPromptLoader = classpathPromptLoader;
     }
 
     public PlanningService.ExecutionPlan createReActPlan(String intentType, String userInput) {
         logger.info("【推理规划层-ReAct】意图: {}", intentType);
         List<String> tools = INTENT_TO_TOOLS.getOrDefault(intentType, new ArrayList<>());
-        List<String> steps = Arrays.asList(
-            "步骤1：思考 - 分析用户需求，选择工具",
-            "步骤2：行动 - 调用工具",
-            "步骤3：观察 - 获取结果",
-            "步骤4：推理 - 生成答复"
-        );
+        String raw = classpathPromptLoader.loadText(PromptResourcePaths.PLANNING_REACT_STEPS);
+        List<String> steps = Arrays.stream(raw.split("\n"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        String reasoning = classpathPromptLoader.renderTemplate(
+                PromptResourcePaths.PLANNING_REACT_REASONING,
+                Map.of("intentType", intentType, "tools", String.valueOf(tools)));
         return new PlanningService.ExecutionPlan(
-            "ReAct",
-            steps,
-            tools,
-            "ReAct：意图=" + intentType + ", 工具=" + tools
+                "ReAct",
+                steps,
+                tools,
+                reasoning
         );
     }
 }

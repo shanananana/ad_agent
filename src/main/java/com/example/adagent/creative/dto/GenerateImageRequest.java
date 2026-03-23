@@ -2,7 +2,10 @@ package com.example.adagent.creative.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/** 文生图请求体 */
+/**
+ * 文生图 <strong>HTTP 请求体</strong>：画面描述、可选标题、用户 ID、是否写入全局素材目录及绑定广告组等开关，
+ * 由 {@link com.example.adagent.creative.CreativeImageController} 接收并交给 {@link com.example.adagent.creative.CreativeImageService}。
+ */
 public class GenerateImageRequest {
 
     /** 图片描述，建议结构化书写效果更好 */

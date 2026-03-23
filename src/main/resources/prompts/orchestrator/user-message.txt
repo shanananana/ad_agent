@@ -1,0 +1,4 @@
+【当前会话ID】{sessionId}。
+
+{userIdBlock}
+{longTermContext}{shortTermContext}当前用户问题：{userInput}

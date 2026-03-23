@@ -4,7 +4,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * 自动调价助手（B×α）任务配置，前缀 ad-agent.bidding。
+ * <strong>自动调价（B×α）</strong>可调参数：是否启用定时任务、cron、α 上下界与单周期最大相对变化、任务日志条数上限、
+ * 定时任务遍历的用户 ID 等，绑定前缀 {@code ad-agent.bidding}。
  */
 @Configuration
 @ConfigurationProperties(prefix = "ad-agent.bidding")

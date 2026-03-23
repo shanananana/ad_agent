@@ -13,8 +13,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 投放效果查询工具：按计划/广告组/广告/素材、渠道、年龄等维度查展示、点击、CTR、ROI，读本地 performance.json。
- * 返回结果包含「汇总」和「每日数据」，便于分析计划趋势。
+ * Spring AI <strong>效果查询工具</strong>：读本地 {@code performance.json}，支持按计划/广告组/广告/素材、渠道、年龄段与时间窗过滤，
+ * 返回汇总与按日序列，供对话中回答「最近效果」「分日趋势」等问题。
  */
 @Component
 public class PerformanceTools {

@@ -12,7 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 创意文生图 API，与对话、自动调价隔离。
+ * <strong>创意文生图 REST</strong>：提供文生图提交与「智能生成描述」等接口，委托
+ * {@link CreativeImageService}、{@link CreativePromptSuggestService}；与对话编排、自动调价模块边界清晰。
  */
 @RestController
 @RequestMapping("/api/ad-agent/creative")

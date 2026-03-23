@@ -5,6 +5,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 用户维度<strong>全局素材目录</strong> JSON 顶层（{@code creatives.json}）：版本元数据与 {@link GlobalCreative} 列表，
+ * 与计划树中广告组的 {@code creativeIds} 引用同一套 UUID。
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GlobalCreativeFile {
 

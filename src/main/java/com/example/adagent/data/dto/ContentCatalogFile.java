@@ -5,6 +5,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 用户维度<strong>推广内容库</strong> JSON 顶层（{@code contents.json}）：版本元数据与 {@link ContentItem} 列表，
+ * 供素材生成时拼入「推广内容」摘要。
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ContentCatalogFile {
 

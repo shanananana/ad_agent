@@ -5,7 +5,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 某用户的会话列表索引 */
+/**
+ * 某 <strong>用户</strong>下全部会话 ID 的索引文件结构（{@code data/chat/users/{userId}/sessions.json}），
+ * 用于列举、创建与删除会话时维护列表。
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserSessionsIndex {
 
@@ -20,6 +23,7 @@ public class UserSessionsIndex {
     public List<SessionMeta> getSessions() { return sessions; }
     public void setSessions(List<SessionMeta> sessions) { this.sessions = sessions != null ? sessions : new ArrayList<>(); }
 
+    /** 索引中单条会话的元数据：ID 与创建/更新时间。 */
     public static class SessionMeta {
         private String sessionId;
         private String createdAt;

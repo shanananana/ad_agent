@@ -10,7 +10,8 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Component;
 
 /**
- * 基础数据查询工具：查计划/广告组/广告/素材列表或详情，读本地 campaigns.json。
+ * Spring AI <strong>基础数据查询工具</strong>：由主对话 {@link org.springframework.ai.chat.client.ChatClient} 调用，按 {@code userId}/{@code campaignId}
+ * 读取本地 {@code campaigns.json}（及全局素材解析），返回计划树或指定节点详情。
  */
 @Component
 public class BaseDataTools {

@@ -2,7 +2,10 @@ package com.example.adagent.creative.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-/** 文生图响应：URL 通常约 24h 有效，请及时下载保存 */
+/**
+ * 文生图 <strong>HTTP 响应</strong>：生成状态、持久化后的本地访问 URL、新素材 UUID 等；
+ * 若返回厂商临时 URL，通常有效期约 24h，客户端宜尽快转存。
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GenerateImageResponse {
 

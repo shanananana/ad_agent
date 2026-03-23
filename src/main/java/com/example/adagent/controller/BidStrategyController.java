@@ -22,6 +22,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * <strong>自动调价助手（B×α）</strong>与计划效果看板的 REST：按用户加载计划列表与详情、
+ * 效果序列/迷你图、合成或刷新效果快照、触发调价任务、读取任务日志，以及创意目录相关聚合数据等。
+ */
 @RestController
 @RequestMapping("/api/ad-agent/bid-strategy")
 public class BidStrategyController {
