@@ -48,6 +48,43 @@ public class DataPathConfig {
         return getBaseDir().resolve("base").resolve("users").resolve(sanitizeId(userId)).resolve("campaigns.json");
     }
 
+    /** 全局素材目录模板（新用户从该文件复制） */
+    public Path getCreativesTemplatePath() {
+        return getBaseDir().resolve("base").resolve("_template_creatives.json");
+    }
+
+    /** 全局素材目录：userId 为空时用 data/base/creatives.json */
+    public Path getCreativesDataPath() {
+        return getBaseDir().resolve("base").resolve("creatives.json");
+    }
+
+    public Path getCreativesDataPath(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return getCreativesDataPath();
+        }
+        return getBaseDir().resolve("base").resolve("users").resolve(sanitizeId(userId)).resolve("creatives.json");
+    }
+
+    public Path getContentsTemplatePath() {
+        return getBaseDir().resolve("base").resolve("_template_contents.json");
+    }
+
+    public Path getContentsDataPath() {
+        return getBaseDir().resolve("base").resolve("contents.json");
+    }
+
+    public Path getContentsDataPath(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return getContentsDataPath();
+        }
+        return getBaseDir().resolve("base").resolve("users").resolve(sanitizeId(userId)).resolve("contents.json");
+    }
+
+    /** 文生图等持久化图片：data/creative/assets/{safeUserId}/… */
+    public Path getCreativeAssetsRoot() {
+        return getBaseDir().resolve("creative").resolve("assets");
+    }
+
     /** 全局效果数据（未按用户隔离时使用） */
     public Path getPerformanceDataPath() {
         return getBaseDir().resolve("performance").resolve("performance.json");

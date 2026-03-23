@@ -1,5 +1,6 @@
 package com.example.adagent.agent;
 
+import com.example.adagent.agent.execution.ReplySanitizer;
 import com.example.adagent.agent.execution.ToolExecutionService;
 import com.example.adagent.agent.memory.MemoryService;
 import com.example.adagent.agent.perception.EntityExtractionService;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -79,7 +81,7 @@ public class AdAgentOrchestrator {
                     intentResult.getIntentType(), userInput, needsTool);
             logger.info("【AD Agent编排器】规划: {}", plan);
 
-            String response = toolExecutionService.executeWithTools(enhancedPrompt);
+            String response = ReplySanitizer.sanitizeFullReply(toolExecutionService.executeWithTools(enhancedPrompt));
 
             memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
             memoryService.addToShortTermMemory(sessionId, "assistant", response, userId);
@@ -168,7 +170,7 @@ public class AdAgentOrchestrator {
             }
             String enhancedPrompt = buildEnhancedPrompt(sessionId, userId, userInput, shortTermContext, longTermContext, intentResult, entityResult);
             StringBuilder fullContent = new StringBuilder();
-            return toolExecutionService.executeWithToolsStream(enhancedPrompt)
+            return toolExecutionService.executeWithToolsStreamForUi(enhancedPrompt, null)
                     .doOnNext(chunk -> { if (chunk != null) fullContent.append(chunk); })
                     .doOnComplete(() -> {
                         memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
@@ -227,19 +229,28 @@ public class AdAgentOrchestrator {
 
             Flux<StreamEvent> thinkingEvent = Flux.just(StreamEvent.thinking(thinking.toString()));
             AtomicReference<StringBuilder> fullContent = new AtomicReference<>(new StringBuilder());
-            Flux<StreamEvent> contentEvents = toolExecutionService.executeWithToolsStream(enhancedPrompt)
-                    .doOnNext(chunk -> {
-                        if (chunk != null) {
-                            fullContent.get().append(chunk);
-                        }
-                    })
-                    .map(StreamEvent::content)
-                    .doOnComplete(() -> {
-                        String reply = fullContent.get().toString();
-                        memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
-                        memoryService.addToShortTermMemory(sessionId, "assistant", reply, userId);
-                    });
-            return thinkingEvent.concatWith(contentEvents);
+            Flux<StreamEvent> modelThenContent = Flux.create((FluxSink<StreamEvent> sink) -> {
+                var subscription = toolExecutionService.executeWithToolsStreamForUi(enhancedPrompt, dropped -> {
+                    if (dropped != null && !dropped.isBlank()) {
+                        sink.next(StreamEvent.thinking("模型侧过程（已从正文剥离）：\n" + dropped));
+                    }
+                }).subscribe(
+                        chunk -> {
+                            if (chunk != null) {
+                                fullContent.get().append(chunk);
+                                sink.next(StreamEvent.content(chunk));
+                            }
+                        },
+                        sink::error,
+                        () -> {
+                            String reply = fullContent.get().toString();
+                            memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
+                            memoryService.addToShortTermMemory(sessionId, "assistant", reply, userId);
+                            sink.complete();
+                        });
+                sink.onDispose(subscription::dispose);
+            }, FluxSink.OverflowStrategy.BUFFER);
+            return thinkingEvent.concatWith(modelThenContent);
         } catch (Exception e) {
             logger.error("【AD Agent编排器】流式(含思考)执行失败", e);
             return Flux.just(StreamEvent.thinking("执行异常: " + e.getMessage()),

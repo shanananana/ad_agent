@@ -639,21 +639,23 @@
       });
     }
 
-    function renderCampaignTree(campaign) {
+    function renderCampaignTree(campaign, creativeById) {
       const el = document.getElementById('campaignTree');
       if (!campaign) {
         el.textContent = '';
         return;
       }
+      creativeById = creativeById || {};
       let html = '<div><strong>' + escapeHtml(campaign.name || '') + '</strong> <span class="meta">(' + escapeHtml(campaign.id) + ')</span></div>';
       (campaign.adGroups || []).forEach(function (ag) {
         html += '<div class="indent">广告组 ' + escapeHtml(ag.name || ag.id) + ' <span class="meta">' + escapeHtml(ag.id) + '</span>';
+        (ag.creativeIds || []).forEach(function (cid) {
+          var cr = creativeById[cid];
+          var label = (cr && cr.title) ? cr.title : cid;
+          html += '<div class="indent">素材 ' + escapeHtml(label) + ' <span class="meta">' + escapeHtml(cid) + '</span></div>';
+        });
         (ag.ads || []).forEach(function (ad) {
-          html += '<div class="indent">广告 ' + escapeHtml(ad.name || ad.id) + ' <span class="meta">' + escapeHtml(ad.id) + '</span>';
-          (ad.creatives || []).forEach(function (cr) {
-            html += '<div class="indent">素材 ' + escapeHtml(cr.title || cr.id) + ' <span class="meta">' + escapeHtml(cr.id) + '</span></div>';
-          });
-          html += '</div>';
+          html += '<div class="indent">广告 ' + escapeHtml(ad.name || ad.id) + ' <span class="meta">' + escapeHtml(ad.id) + '</span></div>';
         });
         html += '</div>';
       });
@@ -723,7 +725,7 @@
         renderPerfSummary(detail.performanceSummary);
         await loadPerfSparklines();
         renderPerfRows(detail.performanceRecent);
-        renderCampaignTree(detail.campaign);
+        renderCampaignTree(detail.campaign, detail.creativeById);
         viewList.classList.add('hidden');
         viewDetail.classList.remove('hidden');
         await loadBidOverview();
@@ -784,7 +786,7 @@
         renderPerfSummary(detail.performanceSummary);
         await loadPerfSparklines();
         renderPerfRows(detail.performanceRecent);
-        renderCampaignTree(detail.campaign);
+        renderCampaignTree(detail.campaign, detail.creativeById);
         await loadBidOverview();
         await loadJobLog();
         setStatus('已刷新');

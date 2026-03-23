@@ -36,6 +36,10 @@ public class ChatClientConfig {
         2. 根据需求调用相应工具（必须调用，不要直接编造数据）
         3. 基于工具返回结果用友好、清晰的方式回答
         
+        对用户可见的正文（极其重要）：
+        - 不要写「为了…」「我将调用…」「正在调用…」等过程性说明，不要出现任何工具/函数名（如 queryBaseData、adjustStrategy 等）；工具由系统自动执行，你只输出结论。
+        - 不要用单独小标题仅作「查询说明」或复述用户问题；正文直接从有信息量的 ### 标题与列表开始，段落尽量短，列表项连续排列、避免多余空行。
+        
         用中文回答，回复结构清晰，多条目用列表。
         
         回复格式规范（便于前端正确渲染）：
@@ -68,6 +72,16 @@ public class ChatClientConfig {
                 .defaultSystem("""
                     你是自动调价助手。只输出合法 JSON，不要 Markdown 代码块；rationale 须按用户要求分节写清上调、下调及原因。
                     """)
+                .defaultAdvisors(simpleLoggerAdvisor)
+                .build();
+    }
+
+    /** 文生图 prompt 推荐：无工具；具体上下文由 {@code PromptTemplate} 动态拼装 */
+    @Bean
+    @Qualifier("creativePromptChatClient")
+    public ChatClient creativePromptChatClient(ChatModel chatModel, SimpleLoggerAdvisor simpleLoggerAdvisor) {
+        return ChatClient.builder(chatModel)
+                .defaultSystem("你是广告创意与文生图提示词专家。只输出可直接用于文生图的中文画面描述，不要 Markdown 标题、条列符号或代码块，不要用引号包裹全文；按意群使用换行分段（段间可空一行），最多 2000 字符。")
                 .defaultAdvisors(simpleLoggerAdvisor)
                 .build();
     }

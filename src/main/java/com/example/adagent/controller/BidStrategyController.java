@@ -7,6 +7,7 @@ import com.example.adagent.bidding.dto.BaseBidModelFile;
 import com.example.adagent.bidding.dto.CoefficientJobLogFile;
 import com.example.adagent.bidding.dto.CoefficientsFile;
 import com.example.adagent.bidding.dto.EffectSnapshotFile;
+import com.example.adagent.creative.CreativeCatalogService;
 import com.example.adagent.data.AdDataRepository;
 import com.example.adagent.data.PerformanceDataRepository;
 import com.example.adagent.data.dto.CampaignBase;
@@ -30,18 +31,21 @@ public class BidStrategyController {
     private final AdDataRepository adDataRepository;
     private final PerformanceDataRepository performanceDataRepository;
     private final CampaignPerformanceSeriesService campaignPerformanceSeriesService;
+    private final CreativeCatalogService creativeCatalogService;
 
     public BidStrategyController(
             BidStrategyRepository bidStrategyRepository,
             BidCoefficientJobService bidCoefficientJobService,
             AdDataRepository adDataRepository,
             PerformanceDataRepository performanceDataRepository,
-            CampaignPerformanceSeriesService campaignPerformanceSeriesService) {
+            CampaignPerformanceSeriesService campaignPerformanceSeriesService,
+            CreativeCatalogService creativeCatalogService) {
         this.bidStrategyRepository = bidStrategyRepository;
         this.bidCoefficientJobService = bidCoefficientJobService;
         this.adDataRepository = adDataRepository;
         this.performanceDataRepository = performanceDataRepository;
         this.campaignPerformanceSeriesService = campaignPerformanceSeriesService;
+        this.creativeCatalogService = creativeCatalogService;
     }
 
     /** 兼容：全局 B×α（data/bid 根目录） */
@@ -112,6 +116,7 @@ public class BidStrategyController {
 
         Map<String, Object> out = new HashMap<>();
         out.put("campaign", campaign);
+        out.put("creativeById", creativeCatalogService.resolveCreativesForCampaign(normalizeUserId(userId), campaign));
         out.put("performanceSummary", summary);
         out.put("performanceRecent", recent != null ? recent : List.of());
         return out;

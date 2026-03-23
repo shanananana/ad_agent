@@ -10,7 +10,7 @@ ad-agent:
     enabled: true
     cron: "0 0 * * * ?"
     # 定时任务遍历该用户名下所有计划并分别调价；留空则读全局 campaigns.json
-    schedule-user-id: ""
+    schedule-user-id: "10001"
     alpha-min: 0.5
     alpha-max: 1.5
     max-relative-change: 0.2
@@ -26,6 +26,9 @@ spring:
 
   # Spring AI 大模型（默认通义千问，可更换为 OpenAI / Azure / 智谱等）：api-key 由 application-secret.yml 提供
   ai:
+    # 启用 DashScope 文生图（ImageModel Bean）；改为 none 可关闭出图能力，不影响对话
+    model:
+      image: dashscope
     dashscope:
       base-url: https://dashscope.aliyuncs.com
       # 读超时（毫秒）。出价任务 prompt 较大，默认 3 分钟；由 DashScopeRestClientTimeoutConfig 注入 RestClient
@@ -35,6 +38,12 @@ spring:
           model: qwen-turbo-1101   # 千问模型，可改为 qwen-plus 等；若换用其他 provider，请改用对应配置（如 spring.ai.openai.chat.options.model）
           temperature: 0.7
           top-p: 0.8
+      image:
+        enabled: true
+        options:
+          model: wanx-v1
+#          # 若接口报错可注释掉 size，按模型默认输出
+#          size: 1024*1024
     tool:
       enabled: true
       internal-tool-execution-enabled: true
