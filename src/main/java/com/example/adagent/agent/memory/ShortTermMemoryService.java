@@ -9,6 +9,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * <strong>短期记忆</strong>：在进程内按 {@code sessionId} 保存最近若干轮用户与助手消息，
+ * 供意图识别（如承接简短确认）与构建对话上下文使用；随会话隔离，不做跨进程持久化。
+ */
 @Service
 public class ShortTermMemoryService {
 
@@ -16,6 +20,7 @@ public class ShortTermMemoryService {
     private final Map<String, List<ChatMessage>> sessionMemories = new ConcurrentHashMap<>();
     private static final int DEFAULT_MAX_MESSAGES = 10;
 
+    /** 会话内单条消息：角色（user/assistant 等）与文本内容。 */
     public static class ChatMessage {
         private final String role;
         private final String content;

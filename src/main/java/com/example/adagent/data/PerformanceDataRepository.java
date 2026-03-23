@@ -24,8 +24,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
- * 效果数据读写：支持按用户隔离（data/performance/users/{userId}/performance.json），
- * userId 为空时使用全局 data/performance/performance.json。加计划/改策略时按用户生成并写入。
+ * <strong>效果数据</strong>仓库：按用户或全局路径读写 {@code performance.json}，提供按活动/素材/维度的查询与汇总；
+ * 在变更计划时生成模拟明细行，供工具层与看板消费。
  */
 @Repository
 public class PerformanceDataRepository {

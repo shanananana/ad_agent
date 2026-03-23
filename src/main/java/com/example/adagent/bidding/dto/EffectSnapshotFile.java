@@ -5,6 +5,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 供 LLM 调价读取的<strong>效果快照</strong> JSON：按与 B/α 相同的维度格汇总展示、点击、消耗、CTR、ROI 等；
+ * 可由 {@link com.example.adagent.bidding.EffectSnapshotGenerator} 合成或来自真实数据管道。
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class EffectSnapshotFile {
 
@@ -46,6 +50,7 @@ public class EffectSnapshotFile {
         this.entries = entries != null ? entries : new ArrayList<>();
     }
 
+    /** 单维度格上的效果指标快照，维度键继承 {@link BidDimensionRow}。 */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class EffectSnapshotEntry extends BidDimensionRow {
         private long impressions;

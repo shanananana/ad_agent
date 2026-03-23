@@ -19,7 +19,8 @@ import java.util.Base64;
 import java.util.List;
 
 /**
- * 通义万相文生图（Spring AI {@link ImageModel}，默认模型见 {@code spring.ai.dashscope.image.options.model}）。
+ * <strong>文生图执行服务</strong>：封装 Spring AI {@link ImageModel}（默认通义万相），
+ * 将前端描述转为图片并可选落盘到 {@code data/creative/assets/{userId}/}；模型名等见 {@code spring.ai.dashscope.image.options.model}。
  */
 @Service
 public class CreativeImageService {

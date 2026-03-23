@@ -14,7 +14,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 全局内容目录、素材目录与广告组绑定 API。
+ * <strong>内容库与全局素材目录</strong> REST：读写用户维度 {@code contents.json}/{@code creatives.json}，
+ * 以及将素材绑定到广告组等操作，供 {@code chat.html} 素材 Tab 与看板使用。
  */
 @RestController
 @RequestMapping("/api/ad-agent/catalog")

@@ -4,6 +4,8 @@ import com.example.adagent.bidding.dto.BaseBidModelFile;
 import com.example.adagent.bidding.dto.CoefficientsFile;
 import com.example.adagent.bidding.dto.EffectSnapshotFile;
 import com.example.adagent.config.BiddingProperties;
+import com.example.adagent.prompt.ClasspathPromptLoader;
+import com.example.adagent.prompt.PromptResourcePaths;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -16,7 +18,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 自动调价助手：根据效果快照建议新 α，并做护栏（区间 + 单周期相对变化）。
+ * 自动调价 <strong>LLM 推理</strong>：将效果快照摘要交给无工具的 {@code biddingChatClient}，解析 JSON 得到各维度新 α，
+ * 并施加 {@code alpha-min/max} 与单周期最大相对变化等护栏后再写回领域模型。
  */
 @Service
 public class BidCoefficientLlmService {
@@ -25,14 +28,17 @@ public class BidCoefficientLlmService {
     private final ChatClient biddingChatClient;
     private final BiddingProperties biddingProperties;
     private final ObjectMapper objectMapper;
+    private final ClasspathPromptLoader classpathPromptLoader;
 
     public BidCoefficientLlmService(
             @Qualifier("biddingChatClient") ChatClient biddingChatClient,
             BiddingProperties biddingProperties,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ClasspathPromptLoader classpathPromptLoader) {
         this.biddingChatClient = biddingChatClient;
         this.biddingProperties = biddingProperties;
         this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
+        this.classpathPromptLoader = classpathPromptLoader;
     }
 
     /**
@@ -141,47 +147,16 @@ public class BidCoefficientLlmService {
             String campaignId,
             String campaignName) {
         String window = snap.getWindowEnd() != null ? snap.getWindowEnd() : "";
-        StringBuilder sb = new StringBuilder();
+        String planIntroSection = "";
         if (campaignId != null && !campaignId.isBlank()) {
-            String namePart =
-                    (campaignName != null && !campaignName.isBlank()) ? ("，名称：" + campaignName) : "";
-            sb.append("【当前投放计划】计划 ID：")
-                    .append(campaignId)
-                    .append(namePart)
-                    .append("。以下 B×α 维度数据仅针对该计划在策略层的出价系数网格。\n\n");
+            String nameClause =
+                    (campaignName != null && !campaignName.isBlank()) ? "，名称：" + campaignName : "";
+            planIntroSection = classpathPromptLoader.renderTemplate(
+                    PromptResourcePaths.BIDDING_PLAN_INTRO,
+                    Map.of("campaignId", campaignId.trim(), "nameClause", nameClause));
         }
-        sb.append(
-                """
-                你是「自动调价助手」。输入中每一行维度包含：
-                - B（baseBid）：基础出价，由人工/策略事先设定。
-                - alpha：当前系数；生效侧可理解为在 B 上再乘 alpha（本任务只调整 alpha）。
-                - impressions / clicks / cost / ctr / roi：该窗口内效果；缺省字段表示无快照数据。
-
-                请结合 ROI、CTR、消耗与量级，给出新的 alpha：表现偏弱（如 ROI 明显偏低、CTR 异常低、空耗）的维度适度下调；表现稳健或偏强的可略上调。变化须平滑，避免剧烈跳变。
-
-                rationale 字段（中文）必须写清「谁涨了、谁降了、为什么」，严格按下面结构组织，小节标题原样保留，小节内每条一行，使用换行符 \\n 拼接为一条 JSON 字符串：
-                ### 上调
-                - 人群/时段h/设备：旧alpha→新alpha，原因（必须点名具体指标，如 ROI、CTR、消耗）
-                （若无上调则写：- 无）
-                ### 下调
-                - 人群/时段h/设备：旧alpha→新alpha，原因（同上）
-                （若无下调则写：- 无）
-                ### 维持与小结
-                - 一句话概括整体策略；未出现在上/下调列表中的维度视为基本维持，可说明为何不动。
-
-                另须输出 entries：与下方数据行一一对应，每条含 audience、hourSlot、device、alpha（你建议的新系数）。
-
-                效果窗口结束: """);
-        sb.append(window);
-        sb.append(
-
-                """
-
-                输出仅为一个 JSON 对象，不要 Markdown 代码围栏，不要其它前后缀。示例（结构示意，数值勿照抄）：
-                {"rationale":"### 上调\\n- …\\n### 下调\\n- …\\n### 维持与小结\\n- …","entries":[{"audience":"18-24","hourSlot":0,"device":"ios","alpha":1.0}]}
-
-                【当前数据 JSON】
-                """);
+        String jsonExampleBlock = classpathPromptLoader.loadText(PromptResourcePaths.BIDDING_JSON_EXAMPLE);
+        String dataJson;
         try {
             java.util.List<java.util.Map<String, Object>> rows = new java.util.ArrayList<>();
             java.util.Map<String, EffectSnapshotFile.EffectSnapshotEntry> snapMap = new java.util.HashMap<>();
@@ -211,11 +186,17 @@ public class BidCoefficientLlmService {
                     rows.add(row);
                 }
             }
-            sb.append(objectMapper.writeValueAsString(rows));
+            dataJson = objectMapper.writeValueAsString(rows);
         } catch (Exception e) {
-            sb.append("(序列化输入失败) ");
+            dataJson = "(序列化输入失败) ";
         }
-        return sb.toString();
+        return classpathPromptLoader.renderTemplate(
+                PromptResourcePaths.BIDDING_COEFFICIENT_USER,
+                Map.of(
+                        "planIntroSection", planIntroSection,
+                        "effectWindowEnd", window,
+                        "jsonExampleBlock", jsonExampleBlock,
+                        "dataJson", dataJson));
     }
 
     private static BaseBidModelFile.BaseBidEntry findBase(BaseBidModelFile base, String aud, int h, String dev) {

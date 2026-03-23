@@ -5,6 +5,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 「智能生成描述」接口的 <strong>JSON 响应</strong>：{@code status} 区分成功/失败，
+ * 成功时 {@code prompt} 为可直接用于文生图的正文，{@code referenceCreativeIds} 便于排查参考了哪些高表现素材。
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SuggestPromptResponse {
 

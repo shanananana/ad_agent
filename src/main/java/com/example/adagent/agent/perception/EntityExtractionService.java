@@ -10,7 +10,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 广告域实体抽取：计划ID、广告组ID、广告ID、素材ID、渠道、年龄、时间范围等。
+ * 广告域<strong>轻量实体抽取</strong>：当前以正则为主，从用户输入中解析 {@code campaignId}（如 c2）及数字列表等，
+ * 供提示增强使用；细粒度参数仍主要依赖 LLM 在工具调用时从上下文填写。
  */
 @Service
 public class EntityExtractionService {
@@ -57,6 +58,10 @@ public class EntityExtractionService {
         return list;
     }
 
+    /**
+     * 单次抽取结果：不可变地持有 {@code entities} 映射（如 {@code campaignId}、{@code numbers}），
+     * 并提供 {@link #getCampaignId()} 等便捷读取。
+     */
     public static class EntityResult {
         private final Map<String, Object> entities;
 

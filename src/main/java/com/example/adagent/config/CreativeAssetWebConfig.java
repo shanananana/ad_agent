@@ -7,7 +7,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import java.nio.file.Path;
 
 /**
- * 将 {@code data/creative/assets/} 映射到 HTTP，供持久化文生图结果访问。
+ * 将 {@code data/creative/assets/} 下的用户子目录映射为静态 Web 路径，使文生图落盘后的图片可通过 URL 被前端与素材目录引用。
  */
 @Configuration
 public class CreativeAssetWebConfig implements WebMvcConfigurer {

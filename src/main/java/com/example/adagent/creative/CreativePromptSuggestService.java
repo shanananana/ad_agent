@@ -8,6 +8,8 @@ import com.example.adagent.data.PerformanceDataRepository;
 import com.example.adagent.data.dto.ContentItem;
 import com.example.adagent.data.dto.CreativePerformanceScore;
 import com.example.adagent.data.dto.GlobalCreative;
+import com.example.adagent.prompt.ClasspathPromptLoader;
+import com.example.adagent.prompt.PromptResourcePaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -22,7 +24,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 结合投放效果较好的素材文案、版位画幅说明、内容库摘要与用户草稿，通过 {@code PromptTemplate} 拼装后调用 LLM。
+ * <strong>智能生成画面描述</strong>：聚合高 ROI 素材文案、所选版位约束说明、内容库摘要与用户草稿，
+ * 使用 {@link org.springframework.ai.chat.prompt.PromptTemplate} 拼装后调用 LLM，返回适合文生图的描述正文。
  */
 @Service
 public class CreativePromptSuggestService {
@@ -36,33 +39,21 @@ public class CreativePromptSuggestService {
     private final PerformanceDataRepository performanceDataRepository;
     private final GlobalCreativeRepository globalCreativeRepository;
     private final ContentCatalogRepository contentCatalogRepository;
+    private final CreativePlacementPromptSpec creativePlacementPromptSpec;
 
     public CreativePromptSuggestService(
             @Qualifier("creativePromptChatClient") ChatClient creativePromptChatClient,
+            ClasspathPromptLoader classpathPromptLoader,
             PerformanceDataRepository performanceDataRepository,
             GlobalCreativeRepository globalCreativeRepository,
-            ContentCatalogRepository contentCatalogRepository) {
+            ContentCatalogRepository contentCatalogRepository,
+            CreativePlacementPromptSpec creativePlacementPromptSpec) {
         this.creativePromptChatClient = creativePromptChatClient;
         this.performanceDataRepository = performanceDataRepository;
         this.globalCreativeRepository = globalCreativeRepository;
         this.contentCatalogRepository = contentCatalogRepository;
-        this.creativeSuggestUserTemplate = new PromptTemplate("""
-                ## 版位与建议画幅（须在画面描述中体现构图与比例意向）
-                {placementSpec}
-
-                ## 高表现素材与文案参考（按 ROI 排序，含目录标题/描述/历史画面描述片段）
-                {performanceReference}
-
-                ## 当前推广内容（内容库）
-                {contentLibrary}
-
-                ## 用户补充 / 草稿（画面意图、必须元素、禁忌等）
-                {userNotes}
-
-                请综合以上各块，写出完整、具体、可直接用于文生图模型的中文「画面描述」。
-                格式要求：按语义换行——例如「整体构图与比例」「主体与场景」「光线与色彩」「留白与安全区」「须避免的元素」各为意群，意群之间换行；相关句子可单独成行；大段之间可用一个空行分段。不要使用「###」标题、不要用「-」条列、不要编号列表。
-                内容要求：写清主体、场景、光线、色调、构图与留白；遵守上文版位中的宽高比与安全区建议；若有禁忌用否定句写入正文。不要解释创作理由。
-                """);
+        this.creativePlacementPromptSpec = creativePlacementPromptSpec;
+        this.creativeSuggestUserTemplate = classpathPromptLoader.loadTemplate(PromptResourcePaths.CREATIVE_SUGGEST_USER);
     }
 
     public SuggestPromptResponse suggest(SuggestPromptRequest req) {
@@ -87,7 +78,7 @@ public class CreativePromptSuggestService {
         String userNotes = StringUtils.hasText(req.getCurrentDescription())
                 ? req.getCurrentDescription().trim()
                 : "（用户未提供草稿。）";
-        String placementSpec = CreativePlacementPromptSpec.build(req.getPlacement());
+        String placementSpec = creativePlacementPromptSpec.build(req.getPlacement());
 
         Prompt prompt = creativeSuggestUserTemplate.create(Map.of(
                 "placementSpec", placementSpec,

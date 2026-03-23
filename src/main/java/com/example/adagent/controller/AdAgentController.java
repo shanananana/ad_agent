@@ -13,6 +13,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 广告投放对话 Agent 的 <strong>REST 控制器</strong>：非流式/流式对话、会话创建与列表、历史消息、
+ * 删除会话，以及查询当前数据根路径等；流式接口使用 {@link StreamEvent} 封装 SSE 事件类型。
+ */
 @RestController
 @RequestMapping("/api/ad-agent")
 public class AdAgentController {

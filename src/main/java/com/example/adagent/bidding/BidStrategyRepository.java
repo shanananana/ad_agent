@@ -21,7 +21,8 @@ import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * 出价策略 JSON 持久化：B、α、效果快照、任务日志。
+ * <strong>出价策略与调价产物</strong>的 JSON 持久化：读写全局或按计划的 {@code base_bid_model.json}、
+ * {@code coefficients.json}、{@code effect_snapshot.json}、{@code coefficient_job_log.json}，含文件锁与初始化逻辑。
  */
 @Repository
 public class BidStrategyRepository {

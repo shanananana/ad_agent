@@ -17,6 +17,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+/**
+ * 对话<strong>会话应用服务</strong>：创建与解析 {@code sessionId}、维护 session 与用户 ID 的内存映射，
+ * 调用 {@link com.example.adagent.agent.AdAgentOrchestrator} 完成单轮对话，并协调 {@link com.example.adagent.agent.memory.MemoryService}
+ * 与 {@link com.example.adagent.data.ChatHistoryRepository} 的持久化；对外提供同步 JSON 与 SSE 流式两种接口。
+ */
 @Service
 public class AdChatSessionService {
 

@@ -3,7 +3,7 @@ package com.example.adagent.data.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
- * 全局内容基础信息，参与拼 prompt 等；{@code id} 为 UUID。
+ * <strong>内容库</strong>单条推广内容：名称与摘要等供「智能生成描述」拼入 LLM 上下文；{@code id} 为 UUID。
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ContentItem {

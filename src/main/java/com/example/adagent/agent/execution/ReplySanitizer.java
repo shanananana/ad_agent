@@ -4,7 +4,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 从模型流式正文中剥离「将调用某工具」等对用户无价值的开场白，便于仅展示结论性内容。
+ * 模型回复正文<strong>净化</strong>工具类：在流式与非流式场景下剥离「为了…将调用某工具」类冗长开场白、
+ * 重复的小标题等，使用户可见正文与「思考过程」通道展示的内容解耦。
+ * <p>无状态，仅提供静态方法；流式场景通过 {@link PrefixStrip} 返回已剥离片段与剩余缓冲。</p>
  */
 public final class ReplySanitizer {
 
@@ -54,6 +56,9 @@ public final class ReplySanitizer {
         return h >= 0 ? work.substring(h) : work;
     }
 
+    /**
+     * 一次前缀剥离的结果：已从缓冲区头部去掉的文本，以及供后续继续输出或拼接的剩余正文。
+     */
     public record PrefixStrip(String removed, String remainder) {
     }
 }

@@ -7,7 +7,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * 本地数据目录配置，运行时从单独目录读写，便于查找与持久化。
+ * 应用<strong>本地数据根路径</strong>及各类 JSON/资源子路径计算（{@code base}、{@code performance}、{@code chat}、
+ * {@code bid}、{@code creative/assets} 等），绑定配置前缀 {@code ad-agent.data}。
  */
 @Configuration
 @ConfigurationProperties(prefix = "ad-agent.data")

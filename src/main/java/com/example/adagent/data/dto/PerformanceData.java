@@ -6,8 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 效果数据存储结构：按计划/广告组/广告/素材 + 渠道 + 年龄 + 日期。
- * 支持按用户隔离：不同 userId 对应不同文件，见 DataPathConfig.getPerformanceDataPath(userId)。
+ * <strong>效果数据</strong> JSON 根结构（按用户的 {@code performance.json}）：多行 {@link PerformanceRow} 明细，
+ * 支持计划/广告组/广告/素材 × 渠道 × 年龄段 × 日期的展示、点击、消耗、ROI 等；路径见 {@link com.example.adagent.config.DataPathConfig#getPerformanceDataPath(String)}。
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PerformanceData {

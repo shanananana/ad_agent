@@ -1,0 +1,4 @@
+输出仅为一个 JSON 对象，不要 Markdown 代码围栏，不要其它前后缀。示例（结构示意，数值勿照抄）：
+{"rationale":"### 上调\\n- …\\n### 下调\\n- …\\n### 维持与小结\\n- …","entries":[{"audience":"18-24","hourSlot":0,"device":"ios","alpha":1.0}]}
+
+【当前数据 JSON】

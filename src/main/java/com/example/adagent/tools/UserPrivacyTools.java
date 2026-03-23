@@ -11,7 +11,8 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 
 /**
- * 用户隐私相关工具：按用户清除长期记忆文件或全部聊天记录（意图驱动调用）。
+ * Spring AI <strong>隐私工具</strong>：声明清除长期记忆或聊天记录等工具供模型调用；实际删除以
+ * {@link com.example.adagent.agent.AdAgentOrchestrator} 服务端同步删盘为准，避免仅「口头已删」。
  */
 @Component
 public class UserPrivacyTools {

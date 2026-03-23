@@ -7,7 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 投放基础数据 DTO：计划、广告组、广告；素材为全局目录 + 广告组 {@code creativeIds}（有序，前者优先）。
+ * 投放<strong>基础数据</strong> JSON 根结构（{@code campaigns.json}）：包含多个 {@link Campaign}，
+ * 树形描述计划 → 广告组 → 广告；素材通过广告组上的 {@code creativeIds} 引用全局素材 UUID（有序，靠前优先）。
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -41,6 +42,7 @@ public class CampaignBase {
         this.campaigns = campaigns != null ? campaigns : new ArrayList<>();
     }
 
+    /** 单个投放计划：预算、状态、排期及其下 {@link AdGroup} 列表。 */
     public static class Campaign {
         private String id;
         private String name;
@@ -107,6 +109,7 @@ public class CampaignBase {
         }
     }
 
+    /** 广告组：定向、绑定的全局素材 ID 列表、其下 {@link Ad} 列表。 */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class AdGroup {
         private String id;
@@ -169,6 +172,7 @@ public class CampaignBase {
         }
     }
 
+    /** 广告单元：隶属于某 {@link AdGroup} 的最小投放实体（本项目中结构从简）。 */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Ad {
         private String id;
@@ -200,6 +204,7 @@ public class CampaignBase {
         }
     }
 
+    /** 定向条件：年龄、性别、地域、渠道等列表，供展示与效果维度对齐。 */
     public static class Targeting {
         private List<String> ageRanges = new ArrayList<>();
         private List<String> genders = new ArrayList<>();

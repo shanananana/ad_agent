@@ -17,7 +17,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * 按用户隔离的全局内容目录：{@code data/base/users/{userId}/contents.json}。
+ * <strong>内容库</strong> JSON 仓库：按用户读写 {@code contents.json}，与 {@link com.example.adagent.data.AdDataRepository} 使用相同 base 目录约定。
  */
 @Repository
 public class ContentCatalogRepository {

@@ -22,7 +22,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * 按用户隔离的全局素材（创意）目录：{@code data/base/users/{userId}/creatives.json}。
+ * <strong>全局素材目录</strong>仓库：按用户读写 {@code creatives.json}，并与文生图落盘文件（{@code data/creative/assets}）协同更新 URL 等字段。
  */
 @Repository
 public class GlobalCreativeRepository {

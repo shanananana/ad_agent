@@ -8,6 +8,8 @@ import com.example.adagent.agent.perception.IntentRecognitionService;
 import com.example.adagent.agent.planning.PlanningService;
 import com.example.adagent.controller.StreamEvent;
 import com.example.adagent.data.LongTermMemoryRepository;
+import com.example.adagent.prompt.ClasspathPromptLoader;
+import com.example.adagent.prompt.PromptResourcePaths;
 import com.example.adagent.service.AdChatSessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,8 +18,16 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * 对话式投放 Agent 编排核心：单轮内串联<strong>意图识别 → 实体抽取 → 规划（CoT / ReAct）→ 工具执行</strong>，
+ * 并读写短期/长期记忆与聊天历史。
+ * <p>对<strong>隐私清除</strong>类意图在服务端同步删除磁盘文件后短路返回，并可建议前端刷新。
+ * 流式输出路径配合 {@link com.example.adagent.agent.execution.ReplySanitizer} 净化用户可见正文。</p>
+ */
 @Service
 public class AdAgentOrchestrator {
 
@@ -29,6 +39,7 @@ public class AdAgentOrchestrator {
     private final ToolExecutionService toolExecutionService;
     private final LongTermMemoryRepository longTermMemoryRepository;
     private final AdChatSessionService adChatSessionService;
+    private final ClasspathPromptLoader classpathPromptLoader;
 
     public AdAgentOrchestrator(
             IntentRecognitionService intentRecognitionService,
@@ -37,6 +48,7 @@ public class AdAgentOrchestrator {
             MemoryService memoryService,
             ToolExecutionService toolExecutionService,
             LongTermMemoryRepository longTermMemoryRepository,
+            ClasspathPromptLoader classpathPromptLoader,
             @Lazy AdChatSessionService adChatSessionService) {
         this.intentRecognitionService = intentRecognitionService;
         this.entityExtractionService = entityExtractionService;
@@ -44,6 +56,7 @@ public class AdAgentOrchestrator {
         this.memoryService = memoryService;
         this.toolExecutionService = toolExecutionService;
         this.longTermMemoryRepository = longTermMemoryRepository;
+        this.classpathPromptLoader = classpathPromptLoader;
         this.adChatSessionService = adChatSessionService;
     }
 
@@ -261,21 +274,17 @@ public class AdAgentOrchestrator {
     private String buildEnhancedPrompt(String sessionId, String userId, String userInput, String shortTermContext, String longTermContext,
                                        IntentRecognitionService.IntentResult intentResult,
                                        EntityExtractionService.EntityResult entityResult) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("【当前会话ID】").append(sessionId).append("。\n\n");
-        if (userId != null && !userId.isBlank()) {
-            prompt.append("【当前用户ID】").append(userId).append("。调用 queryBaseData、queryPerformance、addCampaign、adjustStrategy 时请传入参数 userId 为该值，以按用户隔离基础数据与效果数据。");
-            prompt.append(" 若需清除长期记忆，调用 clearUserLongTermMemory 且 userId 填该值；若需清除全部聊天记录，调用 clearUserChatHistory，userId 填该值，currentSessionId 填上面的【当前会话ID】。\n\n");
-        } else {
-            prompt.append("【当前用户ID】未提供。用户若要求清除长期记忆或聊天记录，应说明无法执行删除并引导其先登录或传入用户标识。\n\n");
-        }
-        if (longTermContext != null && !longTermContext.isEmpty()) {
-            prompt.append(longTermContext);
-        }
-        if (!shortTermContext.isEmpty()) {
-            prompt.append(shortTermContext);
-        }
-        prompt.append("当前用户问题：").append(userInput);
-        return prompt.toString();
+        String userIdBlock = (userId != null && !userId.isBlank())
+                ? classpathPromptLoader.renderTemplate(
+                        PromptResourcePaths.ORCHESTRATOR_USER_ID_PROVIDED,
+                        Map.of("userId", userId.trim()))
+                : classpathPromptLoader.loadText(PromptResourcePaths.ORCHESTRATOR_USER_ID_MISSING);
+        Map<String, Object> model = new HashMap<>();
+        model.put("sessionId", sessionId != null ? sessionId : "");
+        model.put("userIdBlock", userIdBlock);
+        model.put("longTermContext", (longTermContext != null && !longTermContext.isEmpty()) ? longTermContext : "");
+        model.put("shortTermContext", (shortTermContext != null && !shortTermContext.isEmpty()) ? shortTermContext : "");
+        model.put("userInput", userInput != null ? userInput : "");
+        return classpathPromptLoader.renderTemplate(PromptResourcePaths.ORCHESTRATOR_USER_MESSAGE, model);
     }
 }

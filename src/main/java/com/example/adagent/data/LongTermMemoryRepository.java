@@ -19,7 +19,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 /**
- * 长期记忆按用户分文件存储，每个用户一个 JSON 文件。
+ * <strong>长期记忆</strong>持久化：每用户一个 {@code data/long_term_memory/{userId}.json}，提供加载、追加摘要与整文件删除（隐私清除）。
  */
 @Repository
 public class LongTermMemoryRepository {
