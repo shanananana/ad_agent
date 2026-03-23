@@ -13,6 +13,9 @@ data/performance/users/
 data/bid/
 # 全局运行时数据（效果数据、基础数据均为运行时生成，不提交）
 data/base/campaigns.json
+data/base/creatives.json
+data/base/contents.json
+data/creative/
 data/performance/performance.json
 # 若需忽略整个 data 目录，取消下一行注释
 # data/

@@ -1,8 +1,10 @@
 package com.example.adagent.tools;
 
 import com.example.adagent.data.AdDataRepository;
+import com.example.adagent.data.GlobalCreativeRepository;
 import com.example.adagent.data.PerformanceDataRepository;
 import com.example.adagent.data.dto.CampaignBase;
+import com.example.adagent.data.dto.GlobalCreative;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
@@ -17,11 +19,14 @@ public class CampaignMutationTools {
     private static final Logger logger = LoggerFactory.getLogger(CampaignMutationTools.class);
     private final AdDataRepository adDataRepository;
     private final PerformanceDataRepository performanceDataRepository;
+    private final GlobalCreativeRepository globalCreativeRepository;
 
     public CampaignMutationTools(AdDataRepository adDataRepository,
-                                 PerformanceDataRepository performanceDataRepository) {
+                                 PerformanceDataRepository performanceDataRepository,
+                                 GlobalCreativeRepository globalCreativeRepository) {
         this.adDataRepository = adDataRepository;
         this.performanceDataRepository = performanceDataRepository;
+        this.globalCreativeRepository = globalCreativeRepository;
     }
 
     @Tool(description = "新增一个投放计划。当用户说「加一个投放计划」「新建计划」「创建计划」时使用。参数 userId 当前用户ID（多用户时必传以隔离效果数据）；name 为计划名称；dailyBudget 为日预算（元），可选。会自动创建默认广告组、广告、素材，并立即为该用户生成效果数据写入本地。")
@@ -47,20 +52,15 @@ public class CampaignMutationTools {
             targeting.setAgeRanges(java.util.List.of("18-24", "25-34"));
             ag.setTargeting(targeting);
 
-            String aId = adDataRepository.nextAdId(ag.getAds());
-            CampaignBase.Ad ad = new CampaignBase.Ad();
-            ad.setId(aId);
-            ad.setName("默认广告");
-            ad.setStatus("ACTIVE");
-
-            String crId = adDataRepository.nextCreativeId(ad.getCreatives());
-            CampaignBase.Creative cr = new CampaignBase.Creative();
+            String crId = GlobalCreativeRepository.newCreativeId();
+            GlobalCreative cr = new GlobalCreative();
             cr.setId(crId);
             cr.setType("IMAGE");
             cr.setTitle("默认素材");
             cr.setStatus("APPROVED");
-            ad.getCreatives().add(cr);
-            ag.getAds().add(ad);
+            globalCreativeRepository.upsert(userId, cr);
+            ag.setCreativeIds(java.util.List.of(crId));
+            ag.setAds(new java.util.ArrayList<>());
             campaign.getAdGroups().add(ag);
             base.getCampaigns().add(campaign);
 

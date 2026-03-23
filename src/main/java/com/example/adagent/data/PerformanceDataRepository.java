@@ -2,6 +2,7 @@ package com.example.adagent.data;
 
 import com.example.adagent.config.DataPathConfig;
 import com.example.adagent.data.dto.CampaignBase;
+import com.example.adagent.data.dto.CreativePerformanceScore;
 import com.example.adagent.data.dto.PerformanceData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -156,33 +158,35 @@ public class PerformanceDataRepository {
             if (adGroupId != null && !adGroupId.equals(ag.getId())) {
                 continue;
             }
-            for (CampaignBase.Ad ad : ag.getAds()) {
-                if (adId != null && !adId.equals(ad.getId())) {
+            if (adId != null && !adId.isBlank() && !"-".equals(adId)) {
+                continue;
+            }
+            java.util.List<String> cids = ag.getCreativeIds();
+            if (cids == null) {
+                cids = java.util.List.of();
+            }
+            for (String crId : cids) {
+                if (creativeId != null && !creativeId.equals(crId)) {
                     continue;
                 }
-                for (CampaignBase.Creative cr : ad.getCreatives()) {
-                    if (creativeId != null && !creativeId.equals(cr.getId())) {
-                        continue;
-                    }
-                    for (String ch : channels) {
-                        for (String age : ages) {
-                            PerformanceData.PerformanceRow row = new PerformanceData.PerformanceRow();
-                            row.setCampaignId(campaign.getId());
-                            row.setAdGroupId(ag.getId());
-                            row.setAdId(ad.getId());
-                            row.setCreativeId(cr.getId());
-                            row.setChannel(ch);
-                            row.setAgeRange(age);
-                            row.setDate(dateStr);
-                            ThreadLocalRandom r = ThreadLocalRandom.current();
-                            row.setImpressions(r.nextLong(5000, 50000));
-                            row.setClicks((long) (row.getImpressions() * (0.01 + r.nextDouble(0.03))));
-                            row.setCtr(row.getImpressions() > 0 ? (double) row.getClicks() / row.getImpressions() : 0);
-                            row.setCost(r.nextDouble(50, 500));
-                            row.setConversions(r.nextLong(0, 20));
-                            row.setRoi(row.getCost() > 0 ? row.getConversions() * 10.0 / row.getCost() : 0);
-                            out.add(row);
-                        }
+                for (String ch : channels) {
+                    for (String age : ages) {
+                        PerformanceData.PerformanceRow row = new PerformanceData.PerformanceRow();
+                        row.setCampaignId(campaign.getId());
+                        row.setAdGroupId(ag.getId());
+                        row.setAdId("-");
+                        row.setCreativeId(crId);
+                        row.setChannel(ch);
+                        row.setAgeRange(age);
+                        row.setDate(dateStr);
+                        ThreadLocalRandom r = ThreadLocalRandom.current();
+                        row.setImpressions(r.nextLong(5000, 50000));
+                        row.setClicks((long) (row.getImpressions() * (0.01 + r.nextDouble(0.03))));
+                        row.setCtr(row.getImpressions() > 0 ? (double) row.getClicks() / row.getImpressions() : 0);
+                        row.setCost(r.nextDouble(50, 500));
+                        row.setConversions(r.nextLong(0, 20));
+                        row.setRoi(row.getCost() > 0 ? row.getConversions() * 10.0 / row.getCost() : 0);
+                        out.add(row);
                     }
                 }
             }
@@ -234,5 +238,78 @@ public class PerformanceDataRepository {
         out.put("roi", Math.round(roi * 100) / 100.0);
         out.put("recentRows", recent);
         return out;
+    }
+
+    /**
+     * 按素材聚合效果，筛选最近 {@code days} 天；可选限定计划、广告组。
+     * 按 ROI 降序、再按展示量降序，取前 {@code limit} 条；过滤展示量低于 {@code minImpressions} 的噪点。
+     */
+    public List<CreativePerformanceScore> topCreativesByPerformance(
+            String userId,
+            String campaignId,
+            String adGroupId,
+            int days,
+            int limit,
+            long minImpressions) {
+        int d = Math.max(1, Math.min(days, 365));
+        int lim = Math.max(1, Math.min(limit, 50));
+        LocalDate cutoff = LocalDate.now().minusDays(d);
+        String cutoffStr = cutoff.toString();
+
+        List<PerformanceData.PerformanceRow> rows = loadPerformance(userId).getData();
+        Map<String, Agg> map = new LinkedHashMap<>();
+        for (PerformanceData.PerformanceRow r : rows) {
+            if (r.getCreativeId() == null || r.getCreativeId().isBlank()) {
+                continue;
+            }
+            if (r.getDate() == null || r.getDate().compareTo(cutoffStr) < 0) {
+                continue;
+            }
+            if (campaignId != null && !campaignId.isBlank() && !campaignId.equals(r.getCampaignId())) {
+                continue;
+            }
+            if (adGroupId != null && !adGroupId.isBlank() && !adGroupId.equals(r.getAdGroupId())) {
+                continue;
+            }
+            String cid = r.getCreativeId().trim();
+            Agg a = map.computeIfAbsent(cid, k -> new Agg());
+            a.impressions += r.getImpressions();
+            a.clicks += r.getClicks();
+            a.cost += r.getCost();
+            a.conversions += r.getConversions();
+        }
+
+        List<CreativePerformanceScore> list = new ArrayList<>();
+        for (Map.Entry<String, Agg> e : map.entrySet()) {
+            Agg a = e.getValue();
+            if (a.impressions < minImpressions) {
+                continue;
+            }
+            CreativePerformanceScore s = new CreativePerformanceScore();
+            s.setCreativeId(e.getKey());
+            s.setImpressions(a.impressions);
+            s.setClicks(a.clicks);
+            s.setCost(Math.round(a.cost * 100) / 100.0);
+            s.setConversions(a.conversions);
+            double ctr = a.impressions > 0 ? (double) a.clicks / a.impressions : 0.0;
+            double roi = a.cost > 0 ? a.conversions * 10.0 / a.cost : 0.0;
+            s.setCtr(Math.round(ctr * 10000) / 10000.0);
+            s.setRoi(Math.round(roi * 10000) / 10000.0);
+            list.add(s);
+        }
+        list.sort(Comparator
+                .comparingDouble(CreativePerformanceScore::getRoi).reversed()
+                .thenComparingLong(CreativePerformanceScore::getImpressions).reversed());
+        if (list.size() > lim) {
+            return new ArrayList<>(list.subList(0, lim));
+        }
+        return list;
+    }
+
+    private static final class Agg {
+        long impressions;
+        long clicks;
+        double cost;
+        long conversions;
     }
 }

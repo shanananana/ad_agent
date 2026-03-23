@@ -1,6 +1,6 @@
 {
-  "version" : "1.0",
-  "updatedAt" : "2026-03-17T15:08:46.893673Z",
+  "version" : "1.1",
+  "updatedAt" : "2026-03-20T12:00:00Z",
   "campaigns" : [ {
     "id" : "c1",
     "name" : "新专辑《夏夜》全渠道推广",
@@ -18,24 +18,8 @@
         "regions" : [ "北京", "上海", "广州", "深圳" ],
         "channels" : [ "APP", "H5" ]
       },
-      "ads" : [ {
-        "id" : "a1",
-        "name" : "主打歌《夏夜》15s 视频",
-        "status" : "ACTIVE",
-        "creatives" : [ {
-          "id" : "cr1",
-          "type" : "VIDEO",
-          "title" : "夏夜-15s-竖版",
-          "description" : "专辑主打歌预告竖版视频",
-          "status" : "APPROVED"
-        }, {
-          "id" : "cr2",
-          "type" : "IMAGE",
-          "title" : "夏夜-封面方图",
-          "description" : "专辑封面方图信息流",
-          "status" : "APPROVED"
-        } ]
-      } ]
+      "creativeIds" : [ "550e8400-e29b-41d4-a716-446655440001", "550e8400-e29b-41d4-a716-446655440002" ],
+      "ads" : [ ]
     }, {
       "id" : "ag2",
       "name" : "专辑预约-开屏",
@@ -46,18 +30,8 @@
         "regions" : [ "北京", "上海", "杭州", "成都" ],
         "channels" : [ "APP" ]
       },
-      "ads" : [ {
-        "id" : "a2",
-        "name" : "专辑预约开屏图",
-        "status" : "ACTIVE",
-        "creatives" : [ {
-          "id" : "cr3",
-          "type" : "IMAGE",
-          "title" : "夏夜-开屏-1242x2688",
-          "description" : "专辑预约开屏素材",
-          "status" : "APPROVED"
-        } ]
-      } ]
+      "creativeIds" : [ "550e8400-e29b-41d4-a716-446655440003" ],
+      "ads" : [ ]
     } ]
   }, {
     "id" : "c2",
@@ -76,24 +50,8 @@
         "regions" : [ "全国" ],
         "channels" : [ "APP", "H5", "PC" ]
       },
-      "ads" : [ {
-        "id" : "a3",
-        "name" : "首发倒计时-视频+图文",
-        "status" : "ACTIVE",
-        "creatives" : [ {
-          "id" : "cr4",
-          "type" : "VIDEO",
-          "title" : "首发倒计时3天-30s",
-          "description" : "专辑首发倒计时短视频",
-          "status" : "APPROVED"
-        }, {
-          "id" : "cr5",
-          "type" : "TEXT",
-          "title" : "首发日文案-长图",
-          "description" : "专辑曲目列表长图文",
-          "status" : "APPROVED"
-        } ]
-      } ]
+      "creativeIds" : [ "550e8400-e29b-41d4-a716-446655440004", "550e8400-e29b-41d4-a716-446655440005" ],
+      "ads" : [ ]
     } ]
   }, {
     "id" : "c3",
@@ -112,24 +70,8 @@
         "regions" : [ "一线城市" ],
         "channels" : [ "APP", "H5" ]
       },
-      "ads" : [ {
-        "id" : "a4",
-        "name" : "预热海报-年轻向",
-        "status" : "ACTIVE",
-        "creatives" : [ {
-          "id" : "cr6",
-          "type" : "IMAGE",
-          "title" : "夏夜-预热海报A",
-          "description" : "年轻向专辑预热海报",
-          "status" : "APPROVED"
-        }, {
-          "id" : "cr7",
-          "type" : "IMAGE",
-          "title" : "夏夜-预热海报B",
-          "description" : "年轻向专辑预热海报B版",
-          "status" : "APPROVED"
-        } ]
-      } ]
+      "creativeIds" : [ "550e8400-e29b-41d4-a716-446655440006", "550e8400-e29b-41d4-a716-446655440007" ],
+      "ads" : [ ]
     } ]
   }, {
     "id" : "c4",
@@ -148,18 +90,8 @@
         "regions" : [ ],
         "channels" : [ "APP", "H5" ]
       },
-      "ads" : [ {
-        "id" : "a1",
-        "name" : "默认广告",
-        "status" : "ACTIVE",
-        "creatives" : [ {
-          "id" : "cr1",
-          "type" : "IMAGE",
-          "title" : "默认素材",
-          "description" : null,
-          "status" : "APPROVED"
-        } ]
-      } ]
+      "creativeIds" : [ "550e8400-e29b-41d4-a716-446655440008" ],
+      "ads" : [ ]
     } ]
   }, {
     "id" : "c5",
@@ -178,18 +110,8 @@
         "regions" : [ ],
         "channels" : [ "APP", "H5" ]
       },
-      "ads" : [ {
-        "id" : "a1",
-        "name" : "默认广告",
-        "status" : "ACTIVE",
-        "creatives" : [ {
-          "id" : "cr1",
-          "type" : "IMAGE",
-          "title" : "默认素材",
-          "description" : null,
-          "status" : "APPROVED"
-        } ]
-      } ]
+      "creativeIds" : [ "550e8400-e29b-41d4-a716-446655440008" ],
+      "ads" : [ ]
     } ]
   }, {
     "id" : "c6",
@@ -208,18 +130,8 @@
         "regions" : [ ],
         "channels" : [ "APP", "H5" ]
       },
-      "ads" : [ {
-        "id" : "a1",
-        "name" : "默认广告",
-        "status" : "ACTIVE",
-        "creatives" : [ {
-          "id" : "cr1",
-          "type" : "IMAGE",
-          "title" : "默认素材",
-          "description" : null,
-          "status" : "APPROVED"
-        } ]
-      } ]
+      "creativeIds" : [ "550e8400-e29b-41d4-a716-446655440008" ],
+      "ads" : [ ]
     } ]
   } ]
 }

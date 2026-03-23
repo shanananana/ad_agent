@@ -1,0 +1,67 @@
+{
+  "version" : "1.0",
+  "updatedAt" : "2026-03-20T12:00:00Z",
+  "creatives" : [ {
+    "id" : "550e8400-e29b-41d4-a716-446655440001",
+    "type" : "VIDEO",
+    "title" : "夏夜-15s-竖版",
+    "description" : "专辑主打歌预告竖版视频",
+    "status" : "APPROVED",
+    "contentId" : "550e8400-e29b-41d4-a716-446655440101",
+    "placement" : "FEED"
+  }, {
+    "id" : "550e8400-e29b-41d4-a716-446655440002",
+    "type" : "IMAGE",
+    "title" : "夏夜-封面方图",
+    "description" : "专辑封面方图信息流",
+    "status" : "APPROVED",
+    "contentId" : "550e8400-e29b-41d4-a716-446655440101",
+    "placement" : "FEED"
+  }, {
+    "id" : "550e8400-e29b-41d4-a716-446655440003",
+    "type" : "IMAGE",
+    "title" : "夏夜-开屏-1242x2688",
+    "description" : "专辑预约开屏素材",
+    "status" : "APPROVED",
+    "contentId" : "550e8400-e29b-41d4-a716-446655440101",
+    "placement" : "SPLASH"
+  }, {
+    "id" : "550e8400-e29b-41d4-a716-446655440004",
+    "type" : "VIDEO",
+    "title" : "首发倒计时3天-30s",
+    "description" : "专辑首发倒计时短视频",
+    "status" : "APPROVED",
+    "contentId" : "550e8400-e29b-41d4-a716-446655440102",
+    "placement" : "FEED"
+  }, {
+    "id" : "550e8400-e29b-41d4-a716-446655440005",
+    "type" : "TEXT",
+    "title" : "首发日文案-长图",
+    "description" : "专辑曲目列表长图文",
+    "status" : "APPROVED",
+    "contentId" : "550e8400-e29b-41d4-a716-446655440102",
+    "placement" : "FEED"
+  }, {
+    "id" : "550e8400-e29b-41d4-a716-446655440006",
+    "type" : "IMAGE",
+    "title" : "夏夜-预热海报A",
+    "description" : "年轻向专辑预热海报",
+    "status" : "APPROVED",
+    "contentId" : "550e8400-e29b-41d4-a716-446655440101",
+    "placement" : "FEED"
+  }, {
+    "id" : "550e8400-e29b-41d4-a716-446655440007",
+    "type" : "IMAGE",
+    "title" : "夏夜-预热海报B",
+    "description" : "年轻向专辑预热海报B版",
+    "status" : "APPROVED",
+    "contentId" : "550e8400-e29b-41d4-a716-446655440101",
+    "placement" : "FEED"
+  }, {
+    "id" : "550e8400-e29b-41d4-a716-446655440008",
+    "type" : "IMAGE",
+    "title" : "默认素材",
+    "description" : "占位默认图，未绑定内容",
+    "status" : "APPROVED"
+  } ]
+}

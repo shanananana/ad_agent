@@ -28,7 +28,6 @@ public class AdDataRepository {
     private static final Pattern ID_CAMPAIGN = Pattern.compile("c(\\d+)");
     private static final Pattern ID_AD_GROUP = Pattern.compile("ag(\\d+)");
     private static final Pattern ID_AD = Pattern.compile("a(\\d+)");
-    private static final Pattern ID_CREATIVE = Pattern.compile("cr(\\d+)");
 
     private final DataPathConfig dataPathConfig;
     private final ObjectMapper objectMapper;
@@ -96,9 +95,32 @@ public class AdDataRepository {
                 saveBase(userId, empty);
                 logger.info("【数据层】无模板，已为 userId={} 写入空基础数据", userId);
             }
+            ensureUserSidecarCatalogsFromTemplate(userId);
         } catch (IOException e) {
             logger.error("【数据层】初始化用户基础数据失败 userId={}", userId, e);
             throw new RuntimeException("初始化用户基础数据失败", e);
+        }
+    }
+
+    /** 与 campaigns 模板一并初始化全局素材/内容目录（若尚无用户文件）。 */
+    private void ensureUserSidecarCatalogsFromTemplate(String userId) throws IOException {
+        java.nio.file.Path crUser = dataPathConfig.getCreativesDataPath(userId);
+        if (!Files.exists(crUser)) {
+            java.nio.file.Path crTpl = dataPathConfig.getCreativesTemplatePath();
+            Files.createDirectories(crUser.getParent());
+            if (Files.exists(crTpl)) {
+                Files.copy(crTpl, crUser);
+                logger.info("【数据层】已从模板为 userId={} 初始化 creatives.json", userId);
+            }
+        }
+        java.nio.file.Path ctUser = dataPathConfig.getContentsDataPath(userId);
+        if (!Files.exists(ctUser)) {
+            java.nio.file.Path ctTpl = dataPathConfig.getContentsTemplatePath();
+            Files.createDirectories(ctUser.getParent());
+            if (Files.exists(ctTpl)) {
+                Files.copy(ctTpl, ctUser);
+                logger.info("【数据层】已从模板为 userId={} 初始化 contents.json", userId);
+            }
         }
     }
 
@@ -165,19 +187,6 @@ public class AdDataRepository {
             }
         }
         return "a" + (max + 1);
-    }
-
-    public String nextCreativeId(List<CampaignBase.Creative> creatives) {
-        int max = 0;
-        for (CampaignBase.Creative cr : creatives) {
-            if (cr.getId() != null) {
-                var m = ID_CREATIVE.matcher(cr.getId());
-                if (m.matches()) {
-                    max = Math.max(max, Integer.parseInt(m.group(1)));
-                }
-            }
-        }
-        return "cr" + (max + 1);
     }
 
     public Optional<CampaignBase.Campaign> findCampaign(String campaignId, String userId) {

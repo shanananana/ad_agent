@@ -17,16 +17,64 @@
       flex-direction: row;
     }
     .sidebar {
-      width: 220px;
-      min-width: 220px;
+      width: 232px;
+      min-width: 232px;
       border-right: 1px solid #3b4261;
       display: flex;
       flex-direction: column;
       background: #16161e;
     }
-    .sidebar-title { padding: 12px; font-size: 12px; color: #565f89; }
+    .nav-tabs {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px;
+      border-bottom: 1px solid #3b4261;
+    }
+    .nav-tab {
+      text-align: left;
+      padding: 8px 10px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: #a9b1d6;
+      font-size: 12px;
+      cursor: pointer;
+      line-height: 1.35;
+    }
+    .nav-tab:hover { background: #24283b; color: #c0caf5; }
+    .nav-tab.active { background: #2d334d; color: #7aa2f7; font-weight: 600; }
+    .sidebar-context {
+      padding: 8px 10px 10px;
+      border-bottom: 1px solid #3b4261;
+      font-size: 11px;
+      color: #565f89;
+    }
+    .sidebar-context label { display: block; margin-bottom: 4px; color: #a9b1d6; font-size: 12px; }
+    .sidebar-context select {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #3b4261;
+      background: #24283b;
+      color: #c0caf5;
+      font-size: 12px;
+    }
+    .sidebar-context .btn-ctx {
+      margin-top: 8px;
+      width: 100%;
+      padding: 6px;
+      font-size: 11px;
+      border-radius: 6px;
+      border: 1px solid #3b4261;
+      background: #24283b;
+      color: #7aa2f7;
+      cursor: pointer;
+    }
+    .sidebar-context .btn-ctx:hover { background: #2d334d; }
+    .sidebar-title { padding: 10px 12px 4px; font-size: 12px; color: #565f89; }
     .sidebar .btn-new {
-      margin: 8px 12px;
+      margin: 4px 12px 8px;
       padding: 8px 12px;
       border: 1px solid #7aa2f7;
       border-radius: 6px;
@@ -40,6 +88,7 @@
       flex: 1;
       overflow-y: auto;
       padding: 0 8px 8px;
+      min-height: 80px;
     }
     .session-item {
       padding: 8px 10px;
@@ -72,6 +121,7 @@
       display: flex;
       flex-direction: column;
       min-width: 0;
+      min-height: 0;
     }
     .header {
       padding: 12px 16px;
@@ -87,7 +137,6 @@
       color: #7aa2f7;
       font-size: 13px;
       text-decoration: none;
-      margin-left: auto;
       padding: 4px 10px;
       border: 1px solid #3b4261;
       border-radius: 6px;
@@ -103,6 +152,25 @@
       color: #c0caf5;
       font-size: 13px;
     }
+    .main-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .panel.hidden { display: none !important; }
+    .panel-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
     .chat {
       flex: 1;
       overflow-y: auto;
@@ -110,6 +178,7 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
+      min-height: 0;
     }
     .msg {
       max-width: 85%;
@@ -117,6 +186,9 @@
       border-radius: 12px;
       white-space: pre-wrap;
       word-break: break-word;
+    }
+    .msg.assistant:not(.streaming) {
+      white-space: normal;
     }
     .msg.user {
       align-self: flex-end;
@@ -132,12 +204,12 @@
     .msg.assistant th, .msg.assistant td { border: 1px solid #3b4261; padding: 4px 8px; text-align: left; }
     .msg.assistant th { background: #16161e; color: #7aa2f7; font-weight: 600; }
     .msg.assistant tr:nth-child(even) { background: rgba(0,0,0,0.15); }
-    .msg.assistant h1, .msg.assistant h2, .msg.assistant h3 { margin: 6px 0 4px; color: #7aa2f7; font-weight: 600; }
-    .msg.assistant h3 { font-size: 14px; }
-    .msg.assistant ul, .msg.assistant ol { margin: 4px 0; padding-left: 18px; }
-    .msg.assistant li { margin: 1px 0; }
+    .msg.assistant h1, .msg.assistant h2, .msg.assistant h3 { margin: 4px 0 2px; color: #7aa2f7; font-weight: 600; }
+    .msg.assistant h3 { font-size: 13px; }
+    .msg.assistant ul, .msg.assistant ol { margin: 2px 0; padding-left: 18px; }
+    .msg.assistant li { margin: 0; line-height: 1.35; }
     .msg.assistant strong { color: #9ece6a; font-weight: 600; }
-    .msg.assistant p { margin: 2px 0; line-height: 1.4; }
+    .msg.assistant p { margin: 0; line-height: 1.35; }
     .msg.assistant p:first-child { margin-top: 0; }
     .msg.assistant p:last-child { margin-bottom: 0; }
     .msg.assistant code { background: #16161e; padding: 2px 4px; border-radius: 4px; font-size: 12px; }
@@ -172,6 +244,7 @@
       display: flex;
       gap: 8px;
       align-items: center;
+      flex-shrink: 0;
     }
     #input {
       flex: 1;
@@ -182,10 +255,7 @@
       color: #c0caf5;
       font-size: 14px;
     }
-    #input:focus {
-      outline: none;
-      border-color: #7aa2f7;
-    }
+    #input:focus { outline: none; border-color: #7aa2f7; }
     #send {
       padding: 10px 20px;
       border: none;
@@ -229,6 +299,153 @@
       font-size: 14px;
     }
     .modal-dialog .btn-ok:hover { background: #89b4fa; }
+    .hidden { display: none !important; }
+    /* 子面板通用 */
+    h2.panel-h2 { font-size: 15px; color: #bb9af7; margin: 0 0 10px; }
+    p.panel-meta { font-size: 12px; color: #565f89; margin: 0 0 12px; line-height: 1.5; }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: #16161e;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    table.data-table th, table.data-table td {
+      border: 1px solid #3b4261;
+      padding: 6px 8px;
+      text-align: left;
+    }
+    table.data-table th { background: #24283b; color: #7aa2f7; }
+    tr.click-row { cursor: pointer; }
+    tr.click-row:hover { background: #24283b; }
+    .tree { font-size: 12px; color: #a9b1d6; line-height: 1.5; margin-left: 8px; }
+    .tree .indent { margin-left: 16px; border-left: 1px solid #3b4261; padding-left: 10px; }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: #16161e;
+      border: 1px solid #3b4261;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 12px;
+    }
+    .stat-card .k { color: #565f89; font-size: 11px; }
+    .stat-card .v { color: #c0caf5; font-size: 15px; font-weight: 600; margin-top: 4px; }
+    .job-card {
+      background: #16161e;
+      border: 1px solid #3b4261;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      font-size: 12px;
+    }
+    .job-card .ok { color: #9ece6a; }
+    .job-card .fail { color: #f7768e; }
+    .panel-toolbar { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .panel-toolbar button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      background: #414868;
+      color: #c0caf5;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .panel-toolbar button.primary { background: #7aa2f7; color: #1a1b26; }
+    .panel-toolbar button:hover { filter: brightness(1.08); }
+    .cr-form label { display: block; font-size: 12px; color: #a9b1d6; margin: 10px 0 4px; }
+    .cr-prompt-block label[for="crPrompt"] {
+      display: block;
+      margin: 10px 0 6px;
+    }
+    .cr-prompt-row {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 10px;
+      max-width: 640px;
+    }
+    .cr-prompt-row textarea#crPrompt {
+      flex: 1;
+      min-width: 0;
+      min-height: 140px;
+      margin-top: 0;
+    }
+    .btn-suggest-side {
+      flex-shrink: 0;
+      margin-top: 2px;
+      padding: 10px 12px;
+      max-width: 5.5rem;
+      line-height: 1.35;
+      font-size: 12px;
+      border-radius: 8px;
+      border: 1px solid #7aa2f7;
+      background: #24283b;
+      color: #7aa2f7;
+      cursor: pointer;
+      font-weight: 600;
+      text-align: center;
+    }
+    .btn-suggest-side:hover { background: #2d334d; color: #89b4fa; }
+    .btn-suggest-side:disabled { opacity: 0.5; cursor: not-allowed; }
+    .cr-form select, .cr-form textarea, .cr-form input[type="text"] {
+      width: 100%;
+      max-width: 560px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #3b4261;
+      background: #16161e;
+      color: #c0caf5;
+      font-size: 13px;
+    }
+    .cr-form textarea { min-height: 100px; resize: vertical; }
+    .cr-form .checks { margin-top: 10px; font-size: 12px; color: #a9b1d6; }
+    .cr-form .checks label { display: flex; align-items: center; gap: 8px; margin: 6px 0; cursor: pointer; }
+    .cr-preview { margin-top: 16px; max-width: 640px; }
+    .cr-preview img { max-width: 100%; border-radius: 8px; border: 1px solid #3b4261; }
+    .status-line { font-size: 13px; margin-top: 10px; }
+    .status-line.err { color: #f7768e; }
+    .status-line.ok { color: #9ece6a; }
+    .tree-creative-jump {
+      display: block;
+      width: 100%;
+      text-align: left;
+      margin: 2px 0;
+      padding: 6px 8px;
+      border: 1px solid #3b4261;
+      border-radius: 6px;
+      background: #16161e;
+      color: #a9b1d6;
+      font-size: 12px;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+    .tree-creative-jump:hover {
+      border-color: #7aa2f7;
+      color: #c0caf5;
+      background: #24283b;
+    }
+    .effects-filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #7aa2f7;
+      background: #1a1f35;
+      font-size: 12px;
+      color: #a9b1d6;
+    }
+    .effects-filter-bar.hidden { display: none !important; }
+    .effects-filter-bar button { margin: 0; }
   </style>
 </head>
 <body>
@@ -239,29 +456,158 @@
     </div>
   </div>
   <aside class="sidebar">
-    <div class="sidebar-title">会话列表（需填写用户 ID）</div>
-    <button type="button" class="btn-new" id="btnNewSession">新会话</button>
-    <div class="session-list" id="sessionList"></div>
+    <nav class="nav-tabs" id="navTabs">
+      <button type="button" class="nav-tab active" data-tab="chat">对话 Agent</button>
+      <button type="button" class="nav-tab" data-tab="plans">计划查看</button>
+      <button type="button" class="nav-tab" data-tab="effects">效果查看</button>
+      <button type="button" class="nav-tab" data-tab="logs">调价日志</button>
+      <button type="button" class="nav-tab" data-tab="creative">素材生成</button>
+    </nav>
+    <div id="sidebarChatSection">
+      <div class="sidebar-title">会话列表</div>
+      <button type="button" class="btn-new" id="btnNewSession">新会话</button>
+      <div class="session-list" id="sessionList"></div>
+    </div>
+    <div id="sidebarContextSection" class="hidden">
+      <div class="sidebar-context">
+        <label for="ctxCampaign">当前计划</label>
+        <select id="ctxCampaign"><option value="">加载中…</option></select>
+        <button type="button" class="btn-ctx" id="btnReloadCampaigns">刷新计划列表</button>
+      </div>
+    </div>
   </aside>
   <div class="main">
     <div class="header">
       <span>AD Agent</span>
       <label>用户 ID: <input type="text" id="userId" placeholder="必填，可随意填写如 10000" autocomplete="off"></label>
       <span>会话: <span id="sessionId">-</span></span>
-      <a href="/bid-strategy.html" class="nav-link">自动调价助手</a>
+      <a href="/bid-strategy.html" class="nav-link" id="linkBidFull">完整调价看板</a>
+      <a href="/creative-gen.html" class="nav-link">独立素材页</a>
     </div>
-    <div class="chat" id="chat"></div>
-    <div class="input-row">
-      <input type="text" id="input" placeholder="输入消息，例如：加一个投放计划" autocomplete="off">
-      <button type="button" id="send">发送</button>
+    <div class="main-body">
+      <div id="panel-chat" class="panel">
+        <div class="chat" id="chat"></div>
+        <div class="input-row">
+          <input type="text" id="input" placeholder="输入消息，例如：加一个投放计划" autocomplete="off">
+          <button type="button" id="send">发送</button>
+        </div>
+      </div>
+
+      <div id="panel-plans" class="panel hidden">
+        <div class="panel-scroll">
+          <h2 class="panel-h2">计划与结构</h2>
+          <p class="panel-meta">左侧选择计划后展示结构树（广告组 <code>creativeIds</code> + 全局素材标题）。点击下表一行可同步选中计划；点击某条<strong>素材</strong>将打开「效果查看」Tab 并仅筛该素材明细。</p>
+          <div class="panel-toolbar">
+            <button type="button" class="primary" id="btnPlansRefresh">刷新列表</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead>
+                <tr><th>计划 ID</th><th>名称</th><th>状态</th><th>日预算</th><th>广告组数</th></tr>
+              </thead>
+              <tbody id="tbodyPlans"></tbody>
+            </table>
+          </div>
+          <h2 class="panel-h2" style="margin-top:20px">结构树</h2>
+          <div id="campaignTree" class="tree"></div>
+        </div>
+      </div>
+
+      <div id="panel-effects" class="panel hidden">
+        <div class="panel-scroll">
+          <h2 class="panel-h2">效果数据</h2>
+          <p class="panel-meta">来自该用户在 <code>performance.json</code> 中当前计划的汇总与样本明细（与调价看板一致）。与左侧「调价日志」Tab 分离，仅看投放效果。从计划结构树点击素材进入本页时会自动按素材 ID 筛选。</p>
+          <div id="effectsFilterBar" class="effects-filter-bar hidden">
+            <span id="effectsFilterText"></span>
+            <button type="button" class="secondary" id="btnEffectsClearFilter">显示全部明细</button>
+          </div>
+          <div class="panel-toolbar">
+            <button type="button" class="primary" id="btnEffectsRefresh">刷新</button>
+          </div>
+          <div id="effectsSummary" class="stat-grid"></div>
+          <h2 class="panel-h2" style="font-size:13px">最近明细（最多 120 条）</h2>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>日期</th><th>渠道</th><th>年龄</th><th>展示</th><th>点击</th><th>消耗</th><th>CTR</th><th>ROI</th><th>创意</th><th>组</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyEffects"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="panel-logs" class="panel hidden">
+        <div class="panel-scroll">
+          <h2 class="panel-h2">自动调价任务日志</h2>
+          <p class="panel-meta">当前计划目录下 <code>coefficient_job_log.json</code> 中的记录（最近 20 条）。</p>
+          <div class="panel-toolbar">
+            <button type="button" class="primary" id="btnLogsRefresh">刷新</button>
+          </div>
+          <div id="jobLogList"></div>
+        </div>
+      </div>
+
+      <div id="panel-creative" class="panel hidden">
+        <div class="panel-scroll">
+          <h2 class="panel-h2">素材生成（广告组维度）</h2>
+          <p class="panel-meta">左侧先选<strong>当前计划</strong>；广告组用于出图与绑定；统计范围：有组则收窄到该组，否则整计划。可选内容库、<strong>版位</strong>（控制提示模板里的建议长宽比与安全区）。「智能生成描述」服务端用 PromptTemplate 动态插入各块再调 LLM。保存需 base64。</p>
+          <div class="cr-form">
+            <label for="crAdGroup">广告组</label>
+            <select id="crAdGroup"><option value="">请先选左侧计划并刷新</option></select>
+            <label for="crContent">内容库（可选，参与生成描述）</label>
+            <select id="crContent"><option value="">不引用内容库</option></select>
+            <label for="crPlacement">版位（Prompt 模板内注入建议长宽比与安全区）</label>
+            <select id="crPlacement">
+              <option value="">自动（通用比例）</option>
+              <option value="FEED">信息流 / 方图或 4:5 竖版</option>
+              <option value="SPLASH">开屏 9:16 竖版</option>
+              <option value="BANNER">横幅强横向</option>
+              <option value="VIDEO_COVER">视频封面竖版</option>
+            </select>
+            <div class="cr-prompt-block">
+              <label for="crPrompt">画面描述</label>
+              <div class="cr-prompt-row">
+                <textarea id="crPrompt" placeholder="可先写简短草稿，再点右侧「智能生成描述」；生成结果会按语义换行"></textarea>
+                <button type="button" class="btn-suggest-side" id="btnSuggestPrompt">智能生成<br>描述</button>
+              </div>
+            </div>
+            <label for="crTitle">素材标题（可选，默认截断描述）</label>
+            <input type="text" id="crTitle" placeholder="可选">
+            <div class="checks">
+              <label><input type="checkbox" id="crPersist"> 保存到全局素材（须填用户 ID）</label>
+              <label><input type="checkbox" id="crBind" checked disabled> 保存后绑定到当前广告组</label>
+              <label><input type="checkbox" id="crPrepend"> 绑定时插到队首（优先展示）</label>
+            </div>
+            <div class="panel-toolbar" style="margin-top:12px">
+              <button type="button" class="primary" id="btnCrGenerate">生成图片</button>
+            </div>
+            <div id="crStatus" class="status-line" aria-live="polite"></div>
+            <div class="cr-preview" id="crPreview"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
     const API = '/api/ad-agent';
+    const BID_API = '/api/ad-agent/bid-strategy';
+    const CREATIVE_API = '/api/ad-agent/creative/generate';
+    const SUGGEST_PROMPT_API = '/api/ad-agent/creative/suggest-prompt';
+    const CATALOG_API = '/api/ad-agent/catalog/bind-creative';
+    const CONTENTS_API = '/api/ad-agent/catalog/contents';
     const STORAGE_USER = 'adAgentUserId';
     const STORAGE_SESSION = 'adAgentSessionId';
+    const STORAGE_TAB = 'adAgentChatTab';
+    const STORAGE_CAMPAIGN = 'adAgentCtxCampaignId';
     let sessionId = '';
+    let currentTab = 'chat';
+    let cachedCampaigns = [];
+    /** 效果页按素材筛选；从结构树点击素材时设置，地址栏可带 #tab=effects&creativeId= */
+    let effectsFilterCreativeId = '';
 
     const chatEl = document.getElementById('chat');
     const userIdEl = document.getElementById('userId');
@@ -270,15 +616,35 @@
     const sessionIdEl = document.getElementById('sessionId');
     const sessionListEl = document.getElementById('sessionList');
     const btnNewSession = document.getElementById('btnNewSession');
+    const sidebarChatSection = document.getElementById('sidebarChatSection');
+    const sidebarContextSection = document.getElementById('sidebarContextSection');
+    const ctxCampaignEl = document.getElementById('ctxCampaign');
     let streamingBuffer = '';
 
     if (typeof marked !== 'undefined') {
-      marked.setOptions({ gfm: true, breaks: true });
+      marked.setOptions({ gfm: true, breaks: false });
+    }
+    /** 与后端 ReplySanitizer 对齐，兼容历史消息 */
+    function stripAssistantNoise(text) {
+      if (!text) return text;
+      return String(text)
+        .replace(/^\s*为了[\s\S]{1,2000}?将调用[\s\S]{1,800}?[。.]\s*/, '')
+        .replace(/^###\s*计划详情查询\s*\n+/m, '');
     }
     function renderMarkdown(text) {
       if (!text || !text.trim()) return '';
-      if (typeof marked !== 'undefined') return marked.parse(text);
-      return text.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+      const cleaned = stripAssistantNoise(text);
+      if (typeof marked !== 'undefined') return marked.parse(cleaned);
+      return cleaned.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+    }
+
+    function escapeHtml(s) {
+      if (s == null) return '';
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     }
 
     function saveUserId(uid) {
@@ -288,7 +654,80 @@
       try { return localStorage.getItem(STORAGE_USER) || ''; } catch (e) { return ''; }
     }
     function saveSessionId(sid) {
-      try { if (sid) localStorage.setItem(STORAGE_SESSION, sid); } catch (e) {} 
+      try { if (sid) localStorage.setItem(STORAGE_SESSION, sid); } catch (e) {}
+    }
+    function saveCtxCampaign(cid) {
+      try { if (cid) localStorage.setItem(STORAGE_CAMPAIGN, cid); } catch (e) {}
+    }
+    function loadCtxCampaign() {
+      try { return localStorage.getItem(STORAGE_CAMPAIGN) || ''; } catch (e) { return ''; }
+    }
+
+    function getUserId() {
+      return (userIdEl && userIdEl.value) ? userIdEl.value.trim() : '';
+    }
+
+    function getBidUserIdParam() {
+      const uid = getUserId();
+      return uid ? ('?userId=' + encodeURIComponent(uid)) : '';
+    }
+
+    function withBidQuery(extra) {
+      const u = getBidUserIdParam();
+      if (!extra) return u;
+      return u ? (u + '&' + extra) : ('?' + extra);
+    }
+
+    function parseHashParams() {
+      const raw = (location.hash || '').replace(/^#/, '');
+      const out = { tab: null, creativeId: '' };
+      if (!raw) return out;
+      raw.split('&').forEach(function (pair) {
+        const i = pair.indexOf('=');
+        const k = i >= 0 ? pair.slice(0, i) : pair;
+        const v = i >= 0 ? decodeURIComponent(pair.slice(i + 1).replace(/\+/g, ' ')) : '';
+        if (k === 'tab') out.tab = v;
+        else if (k === 'creativeId') out.creativeId = v;
+      });
+      return out;
+    }
+
+    function replaceLocationHash() {
+      try {
+        if (currentTab === 'chat') {
+          history.replaceState(null, '', location.pathname);
+          return;
+        }
+        const parts = ['tab=' + encodeURIComponent(currentTab)];
+        if (currentTab === 'effects' && effectsFilterCreativeId) {
+          parts.push('creativeId=' + encodeURIComponent(effectsFilterCreativeId));
+        }
+        history.replaceState(null, '', location.pathname + '#' + parts.join('&'));
+      } catch (e) { /* ignore */ }
+    }
+
+    function aggregatePerfRows(rows) {
+      let impressions = 0;
+      let clicks = 0;
+      let cost = 0;
+      let conversions = 0;
+      (rows || []).forEach(function (r) {
+        impressions += r.impressions != null ? Number(r.impressions) : 0;
+        clicks += r.clicks != null ? Number(r.clicks) : 0;
+        cost += r.cost != null ? Number(r.cost) : 0;
+        conversions += r.conversions != null ? Number(r.conversions) : 0;
+      });
+      const ctr = impressions > 0 ? clicks / impressions : 0;
+      const roi = cost > 0 ? (conversions * 10.0) / cost : 0;
+      return {
+        rowCount: (rows || []).length,
+        totalImpressions: impressions,
+        totalClicks: clicks,
+        totalCost: Math.round(cost * 100) / 100.0,
+        totalConversions: conversions,
+        ctr: Math.round(ctr * 10000) / 10000.0,
+        roi: Math.round(roi * 10000) / 10000.0
+      };
     }
 
     async function ensureSession() {
@@ -302,10 +741,6 @@
       if (sessionId && uid) saveSessionId(sessionId);
       if (uid) refreshSessionList();
       return sessionId;
-    }
-
-    function getUserId() {
-      return (userIdEl && userIdEl.value) ? userIdEl.value.trim() : '';
     }
 
     async function fetchSessions(uid) {
@@ -403,16 +838,20 @@
     }
 
     function appendThinking(text) {
-      const wrap = document.createElement('div');
-      wrap.className = 'thinking';
-      wrap.innerHTML = '<details open><summary>思考过程</summary><div class="body"></div></details>';
-      const body = wrap.querySelector('.body');
-      body.textContent = text;
-      chatEl.appendChild(wrap);
+      let slot = chatEl.querySelector('.thinking.thinking-slot');
+      if (!slot) {
+        slot = document.createElement('div');
+        slot.className = 'thinking thinking-slot';
+        slot.innerHTML = '<details><summary>思考过程</summary><div class="body"></div></details>';
+        chatEl.appendChild(slot);
+      }
+      const body = slot.querySelector('.body');
+      body.textContent = (body.textContent ? body.textContent + '\n' : '') + text;
       chatEl.scrollTop = chatEl.scrollHeight;
     }
 
     function appendAssistantChunk(chunk) {
+      chatEl.querySelector('.thinking.thinking-slot')?.classList.remove('thinking-slot');
       let last = chatEl.querySelector('.msg.assistant.streaming');
       if (!last) {
         streamingBuffer = '';
@@ -433,6 +872,7 @@
         last.classList.remove('streaming');
         streamingBuffer = '';
       }
+      chatEl.querySelector('.thinking.thinking-slot')?.classList.remove('thinking-slot');
     }
 
     function parseSSE(reader, onEvent) {
@@ -486,6 +926,9 @@
       await ensureSession();
       inputEl.value = '';
       sendBtn.disabled = true;
+      chatEl.querySelectorAll('.thinking.thinking-slot').forEach(function (el) {
+        el.classList.remove('thinking-slot');
+      });
       appendUserMessage(text);
 
       try {
@@ -526,6 +969,549 @@
       }
     }
 
+    /* —— 计划 / 上下文 —— */
+    async function loadCampaignOptions() {
+      const uid = getUserId();
+      if (!uid) {
+        ctxCampaignEl.innerHTML = '<option value="">请先填写用户 ID</option>';
+        cachedCampaigns = [];
+        return;
+      }
+      ctxCampaignEl.innerHTML = '<option value="">加载中…</option>';
+      try {
+        const res = await fetch(BID_API + '/campaigns?userId=' + encodeURIComponent(uid));
+        const data = await res.json();
+        cachedCampaigns = data.campaigns || [];
+        ctxCampaignEl.innerHTML = '';
+        if (!cachedCampaigns.length) {
+          ctxCampaignEl.innerHTML = '<option value="">暂无计划</option>';
+          return;
+        }
+        const saved = loadCtxCampaign();
+        cachedCampaigns.forEach(function (c) {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.id + ' · ' + (c.name || '');
+          ctxCampaignEl.appendChild(opt);
+        });
+        if (saved && cachedCampaigns.some(function (x) { return x.id === saved; })) {
+          ctxCampaignEl.value = saved;
+        } else {
+          ctxCampaignEl.value = cachedCampaigns[0].id;
+          saveCtxCampaign(ctxCampaignEl.value);
+        }
+      } catch (e) {
+        ctxCampaignEl.innerHTML = '<option value="">加载失败</option>';
+        console.error(e);
+      }
+    }
+
+    function getSelectedCampaignId() {
+      return (ctxCampaignEl && ctxCampaignEl.value) ? ctxCampaignEl.value.trim() : '';
+    }
+
+    function renderPlansTable() {
+      const tbody = document.getElementById('tbodyPlans');
+      tbody.innerHTML = '';
+      (cachedCampaigns || []).forEach(function (c) {
+        const tr = document.createElement('tr');
+        tr.className = 'click-row';
+        tr.innerHTML =
+          '<td>' + escapeHtml(c.id) + '</td>' +
+          '<td>' + escapeHtml(c.name) + '</td>' +
+          '<td>' + escapeHtml(c.status) + '</td>' +
+          '<td>' + (c.dailyBudget != null ? c.dailyBudget : '-') + '</td>' +
+          '<td>' + (c.adGroupCount != null ? c.adGroupCount : 0) + '</td>';
+        tr.addEventListener('click', function () {
+          ctxCampaignEl.value = c.id;
+          saveCtxCampaign(c.id);
+          refreshPanelForTab();
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderCampaignTree(campaign, creativeById) {
+      const el = document.getElementById('campaignTree');
+      if (!campaign) {
+        el.textContent = '请选择计划';
+        return;
+      }
+      creativeById = creativeById || {};
+      let html = '<div><strong>' + escapeHtml(campaign.name || '') + '</strong> <span style="color:#565f89">(' + escapeHtml(campaign.id) + ')</span></div>';
+      (campaign.adGroups || []).forEach(function (ag) {
+        html += '<div class="indent">广告组 ' + escapeHtml(ag.name || ag.id) + ' <span style="color:#565f89">' + escapeHtml(ag.id) + '</span>';
+        (ag.creativeIds || []).forEach(function (cid) {
+          var cr = creativeById[cid];
+          var label = (cr && cr.title) ? cr.title : cid;
+          html += '<div class="indent"><button type="button" class="tree-creative-jump" data-creative-id="' + escapeHtml(cid) + '">素材 ' + escapeHtml(label) + ' <span style="color:#565f89">' + escapeHtml(cid) + '</span></button></div>';
+        });
+        (ag.ads || []).forEach(function (ad) {
+          html += '<div class="indent">广告 ' + escapeHtml(ad.name || ad.id) + ' <span style="color:#565f89">' + escapeHtml(ad.id) + '</span></div>';
+        });
+        html += '</div>';
+      });
+      el.innerHTML = html || '<span style="color:#565f89">无广告组</span>';
+    }
+
+    async function loadPlansTree() {
+      const cid = getSelectedCampaignId();
+      const treeEl = document.getElementById('campaignTree');
+      if (!cid || !getUserId()) {
+        treeEl.textContent = '请选择计划';
+        return;
+      }
+      treeEl.textContent = '加载中…';
+      try {
+        const res = await fetch(BID_API + '/campaigns/' + encodeURIComponent(cid) + '/detail' + getBidUserIdParam());
+        if (!res.ok) {
+          treeEl.textContent = '加载失败';
+          return;
+        }
+        const detail = await res.json();
+        renderCampaignTree(detail.campaign, detail.creativeById);
+      } catch (e) {
+        treeEl.textContent = '加载失败';
+      }
+    }
+
+    document.getElementById('campaignTree').addEventListener('click', function (e) {
+      const btn = e.target.closest('.tree-creative-jump');
+      if (!btn) return;
+      e.preventDefault();
+      const cid = (btn.getAttribute('data-creative-id') || '').trim();
+      if (!cid) return;
+      effectsFilterCreativeId = cid;
+      switchTab('effects', { preserveCreativeFilter: true });
+    });
+
+    function fmtCost(x) {
+      if (x == null) return '-';
+      return (Math.round(Number(x) * 100) / 100) + ' 元';
+    }
+    function fmtCtrRoi(x) {
+      if (x == null) return '-';
+      return (Math.round(Number(x) * 10000) / 100) + '%';
+    }
+
+    async function loadEffectsPanel() {
+      const cid = getSelectedCampaignId();
+      const sumEl = document.getElementById('effectsSummary');
+      const tbody = document.getElementById('tbodyEffects');
+      const filterBar = document.getElementById('effectsFilterBar');
+      const filterText = document.getElementById('effectsFilterText');
+      sumEl.innerHTML = '';
+      tbody.innerHTML = '';
+      if (effectsFilterCreativeId) {
+        filterBar.classList.remove('hidden');
+        filterText.textContent = '当前仅展示素材 ' + effectsFilterCreativeId + ' 的明细（汇总卡片同步为筛选后数据）。';
+      } else {
+        filterBar.classList.add('hidden');
+      }
+      if (!cid || !getUserId()) {
+        sumEl.innerHTML = '<div class="stat-card"><div class="k">提示</div><div class="v">请选择计划</div></div>';
+        return;
+      }
+      try {
+        const res = await fetch(BID_API + '/campaigns/' + encodeURIComponent(cid) + '/detail' + getBidUserIdParam());
+        if (!res.ok) return;
+        const detail = await res.json();
+        let rows = detail.performanceRecent || [];
+        const filterId = effectsFilterCreativeId;
+        if (filterId) {
+          rows = rows.filter(function (r) { return r && r.creativeId === filterId; });
+        }
+        const perf = filterId ? aggregatePerfRows(rows) : (detail.performanceSummary || {});
+        function card(k, v) {
+          return '<div class="stat-card"><div class="k">' + escapeHtml(k) + '</div><div class="v">' + escapeHtml(String(v)) + '</div></div>';
+        }
+        sumEl.innerHTML =
+          card('明细条数', perf.rowCount) +
+          card('总展示', perf.totalImpressions) +
+          card('总点击', perf.totalClicks) +
+          card('总消耗', fmtCost(perf.totalCost)) +
+          card('转化', perf.totalConversions) +
+          card('CTR', fmtCtrRoi(perf.ctr)) +
+          card('ROI', fmtCtrRoi(perf.roi));
+        if (!rows.length) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td colspan="10" style="text-align:center;color:#565f89">' +
+            (filterId ? '该素材在最近明细中无样本行（可点「显示全部明细」或刷新计划效果数据）。' : '暂无明细') + '</td>';
+          tbody.appendChild(tr);
+          return;
+        }
+        rows.forEach(function (r) {
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td>' + escapeHtml(r.date) + '</td>' +
+            '<td>' + escapeHtml(r.channel) + '</td>' +
+            '<td>' + escapeHtml(r.ageRange) + '</td>' +
+            '<td>' + (r.impressions != null ? r.impressions : '') + '</td>' +
+            '<td>' + (r.clicks != null ? r.clicks : '') + '</td>' +
+            '<td>' + fmtCost(r.cost) + '</td>' +
+            '<td>' + fmtCtrRoi(r.ctr) + '</td>' +
+            '<td>' + fmtCtrRoi(r.roi) + '</td>' +
+            '<td style="font-size:10px;max-width:120px;word-break:break-all">' + escapeHtml(r.creativeId || '') + '</td>' +
+            '<td>' + escapeHtml(r.adGroupId || '') + '</td>';
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function loadLogsPanel() {
+      const host = document.getElementById('jobLogList');
+      host.innerHTML = '';
+      const cid = getSelectedCampaignId();
+      if (!cid || !getUserId()) {
+        host.textContent = '请选择计划';
+        return;
+      }
+      try {
+        const res = await fetch(
+          BID_API + '/campaigns/' + encodeURIComponent(cid) + '/job-log' + withBidQuery('limit=20'));
+        const data = await res.json();
+        (data.jobs || []).forEach(function (j) {
+          const div = document.createElement('div');
+          div.className = 'job-card';
+          const ok = j.success ? '<span class="ok">成功</span>' : '<span class="fail">失败</span>';
+          div.innerHTML =
+            '<div><strong>' + ok + '</strong> · ' + escapeHtml(j.startedAt || '') + ' · jobId ' + escapeHtml((j.jobId || '').slice(0, 8)) + '…</div>' +
+            '<div style="color:#565f89;margin-top:4px">v' + escapeHtml(String(j.coefficientsVersionBefore)) + ' → v' + escapeHtml(String(j.coefficientsVersionAfter)) + '</div>' +
+            (j.errorMessage ? '<div class="fail" style="margin-top:6px">' + escapeHtml(j.errorMessage) + '</div>' : '') +
+            (j.llmRationale ? '<div style="margin-top:8px;white-space:pre-wrap;color:#a9b1d6">' + escapeHtml(j.llmRationale) + '</div>' : '');
+          host.appendChild(div);
+        });
+        if (!data.jobs || !data.jobs.length) {
+          host.innerHTML = '<p class="panel-meta">暂无日志（该计划可能尚未跑过调价任务）。</p>';
+        }
+      } catch (e) {
+        host.textContent = '加载失败';
+      }
+    }
+
+    async function populateCrAdGroups() {
+      const sel = document.getElementById('crAdGroup');
+      sel.innerHTML = '<option value="">加载中…</option>';
+      const cid = getSelectedCampaignId();
+      if (!cid || !getUserId()) {
+        sel.innerHTML = '<option value="">请先选计划</option>';
+        return;
+      }
+      try {
+        const res = await fetch(BID_API + '/campaigns/' + encodeURIComponent(cid) + '/detail' + getBidUserIdParam());
+        if (!res.ok) {
+          sel.innerHTML = '<option value="">加载失败</option>';
+          return;
+        }
+        const detail = await res.json();
+        const campaign = detail.campaign;
+        sel.innerHTML = '';
+        (campaign.adGroups || []).forEach(function (ag) {
+          const opt = document.createElement('option');
+          opt.value = ag.id;
+          opt.textContent = (ag.name || ag.id) + ' (' + ag.id + ')';
+          sel.appendChild(opt);
+        });
+        if (!sel.options.length) {
+          sel.innerHTML = '<option value="">无广告组</option>';
+        }
+      } catch (e) {
+        sel.innerHTML = '<option value="">加载失败</option>';
+      }
+    }
+
+    function setCrStatus(msg, isErr) {
+      const el = document.getElementById('crStatus');
+      el.textContent = msg || '';
+      el.className = 'status-line' + (isErr ? ' err' : (msg ? ' ok' : ''));
+    }
+
+    async function onCreativeGenerate() {
+      const uid = getUserId();
+      const prompt = (document.getElementById('crPrompt').value || '').trim();
+      const cid = getSelectedCampaignId();
+      const agid = (document.getElementById('crAdGroup').value || '').trim();
+      const persist = document.getElementById('crPersist').checked;
+      const bind = document.getElementById('crBind').checked;
+      const prepend = document.getElementById('crPrepend').checked;
+      const title = (document.getElementById('crTitle').value || '').trim();
+
+      if (!prompt) {
+        setCrStatus('请填写画面描述', true);
+        return;
+      }
+      if (!cid || !agid) {
+        setCrStatus('请选择计划与广告组', true);
+        return;
+      }
+      if (persist && !uid) {
+        setCrStatus('保存素材需要填写用户 ID', true);
+        return;
+      }
+
+      const btn = document.getElementById('btnCrGenerate');
+      const prev = document.getElementById('crPreview');
+      prev.innerHTML = '';
+      btn.disabled = true;
+      setCrStatus('生成中…');
+
+      try {
+        const body = { prompt: prompt };
+        if (persist) {
+          body.persist = true;
+          body.userId = uid;
+          if (title) body.title = title;
+        }
+        const res = await fetch(CREATIVE_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok || data.status !== 'ok') {
+          setCrStatus(data.message || ('请求失败 ' + res.status), true);
+          return;
+        }
+
+        if (data.imageUrl) {
+          const img = document.createElement('img');
+          img.src = data.imageUrl;
+          img.alt = '生成结果';
+          prev.appendChild(img);
+        } else if (data.b64Json) {
+          const img = document.createElement('img');
+          img.src = 'data:image/png;base64,' + data.b64Json;
+          img.alt = '生成结果';
+          prev.appendChild(img);
+        }
+
+        var msg = '生成成功';
+        if (data.creativeId) msg += ' · 素材 ID: ' + data.creativeId;
+
+        if (persist && data.creativeId && bind) {
+          const bres = await fetch(CATALOG_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: uid,
+              campaignId: cid,
+              adGroupId: agid,
+              creativeId: data.creativeId,
+              prepend: prepend
+            })
+          });
+          if (!bres.ok) {
+            const errText = await bres.text();
+            setCrStatus(msg + '；绑定失败: ' + (errText || bres.status), true);
+            return;
+          }
+          msg += ' · 已绑定到广告组 ' + agid;
+        } else if (persist && data.creativeId && !bind) {
+          msg += '（未绑定到组，可稍后调用 bind-creative）';
+        }
+
+        if (data.persistedPath) msg += ' · ' + data.persistedPath;
+        setCrStatus(msg, false);
+
+        if (persist && data.creativeId) {
+          var safe = uid.replace(/[^a-zA-Z0-9_-]/g, '_');
+          var hint = document.createElement('div');
+          hint.className = 'panel-meta';
+          hint.style.marginTop = '8px';
+          hint.innerHTML = '本地文件：<a href="/api/ad-agent/creative/files/' + encodeURIComponent(safe) + '/' + encodeURIComponent(data.creativeId) + '.png" target="_blank" rel="noopener" style="color:#7aa2f7">打开 PNG</a>';
+          prev.appendChild(hint);
+        }
+      } catch (e) {
+        setCrStatus(e.message || '网络错误', true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function refreshPanelForTab() {
+      if (currentTab === 'plans') {
+        renderPlansTable();
+        loadPlansTree();
+      } else if (currentTab === 'effects') {
+        loadEffectsPanel();
+      } else if (currentTab === 'logs') {
+        loadLogsPanel();
+      } else if (currentTab === 'creative') {
+        loadCrContents();
+        populateCrAdGroups();
+      }
+    }
+
+    function switchTab(tab, opts) {
+      opts = opts || {};
+      if (tab === 'effects') {
+        if (!opts.preserveCreativeFilter) {
+          effectsFilterCreativeId = '';
+        }
+      } else {
+        effectsFilterCreativeId = '';
+      }
+      currentTab = tab;
+      try { localStorage.setItem(STORAGE_TAB, tab); } catch (e) {}
+      document.querySelectorAll('.nav-tab').forEach(function (btn) {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+      });
+      sidebarChatSection.classList.toggle('hidden', tab !== 'chat');
+      sidebarContextSection.classList.toggle('hidden', tab === 'chat');
+
+      document.getElementById('panel-chat').classList.toggle('hidden', tab !== 'chat');
+      document.getElementById('panel-plans').classList.toggle('hidden', tab !== 'plans');
+      document.getElementById('panel-effects').classList.toggle('hidden', tab !== 'effects');
+      document.getElementById('panel-logs').classList.toggle('hidden', tab !== 'logs');
+      document.getElementById('panel-creative').classList.toggle('hidden', tab !== 'creative');
+
+      replaceLocationHash();
+
+      if (tab !== 'chat') {
+        if (!getUserId()) {
+          if (tab === 'plans') {
+            document.getElementById('campaignTree').textContent = '请先填写用户 ID';
+            document.getElementById('tbodyPlans').innerHTML = '';
+          }
+          return;
+        }
+        loadCampaignOptions().then(function () {
+          renderPlansTable();
+          refreshPanelForTab();
+        });
+      }
+    }
+
+    document.querySelectorAll('.nav-tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        switchTab(btn.dataset.tab, { preserveCreativeFilter: false });
+      });
+    });
+
+    ctxCampaignEl.addEventListener('change', function () {
+      saveCtxCampaign(ctxCampaignEl.value);
+      effectsFilterCreativeId = '';
+      refreshPanelForTab();
+      replaceLocationHash();
+    });
+    document.getElementById('btnReloadCampaigns').addEventListener('click', function () {
+      loadCampaignOptions().then(function () {
+        renderPlansTable();
+        refreshPanelForTab();
+      });
+    });
+    document.getElementById('btnPlansRefresh').addEventListener('click', function () {
+      loadCampaignOptions().then(function () {
+        renderPlansTable();
+        loadPlansTree();
+      });
+    });
+    document.getElementById('btnEffectsRefresh').addEventListener('click', loadEffectsPanel);
+    document.getElementById('btnEffectsClearFilter').addEventListener('click', function () {
+      effectsFilterCreativeId = '';
+      replaceLocationHash();
+      loadEffectsPanel();
+    });
+    document.getElementById('btnLogsRefresh').addEventListener('click', loadLogsPanel);
+    document.getElementById('btnCrGenerate').addEventListener('click', onCreativeGenerate);
+    document.getElementById('btnSuggestPrompt').addEventListener('click', onSuggestPrompt);
+
+    async function loadCrContents() {
+      const sel = document.getElementById('crContent');
+      const uid = getUserId();
+      const keep = sel.value || '';
+      sel.innerHTML = '<option value="">不引用内容库</option>';
+      if (!uid) return;
+      try {
+        const res = await fetch(CONTENTS_API + '?userId=' + encodeURIComponent(uid));
+        if (!res.ok) return;
+        const data = await res.json();
+        (data.contents || []).forEach(function (c) {
+          if (!c.id) return;
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = (c.name || c.id) + ' (' + c.id.slice(0, 8) + '…)';
+          sel.appendChild(opt);
+        });
+        if (keep && Array.from(sel.options).some(function (o) { return o.value === keep; })) {
+          sel.value = keep;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function onSuggestPrompt() {
+      const uid = getUserId();
+      const cid = getSelectedCampaignId();
+      const agid = (document.getElementById('crAdGroup').value || '').trim();
+      const contentId = (document.getElementById('crContent').value || '').trim();
+      const currentDescription = (document.getElementById('crPrompt').value || '').trim();
+      const btn = document.getElementById('btnSuggestPrompt');
+
+      if (!uid) {
+        setCrStatus('请先填写用户 ID', true);
+        return;
+      }
+      if (!cid) {
+        setCrStatus('请先在左侧选择「当前计划」', true);
+        return;
+      }
+
+      btn.disabled = true;
+      setCrStatus('正在生成描述…');
+      try {
+        const body = {
+          userId: uid,
+          campaignId: cid,
+          currentDescription: currentDescription || undefined,
+          days: 30,
+          topK: 8
+        };
+        if (agid) body.adGroupId = agid;
+        if (contentId) body.contentId = contentId;
+        var placement = (document.getElementById('crPlacement').value || '').trim();
+        if (placement) body.placement = placement;
+        const res = await fetch(SUGGEST_PROMPT_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok || data.status !== 'ok') {
+          setCrStatus(data.message || ('请求失败 ' + res.status), true);
+          return;
+        }
+        document.getElementById('crPrompt').value = data.prompt || '';
+        var hint = '已填入推荐描述';
+        if (data.referenceCreativeIds && data.referenceCreativeIds.length) {
+          hint += '（参考素材 ' + data.referenceCreativeIds.length + ' 条）';
+        }
+        setCrStatus(hint, false);
+      } catch (e) {
+        setCrStatus(e.message || '网络错误', true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+    (function wireCrPersistBind() {
+      var p = document.getElementById('crPersist');
+      var b = document.getElementById('crBind');
+      function sync() {
+        if (!p.checked) {
+          b.checked = false;
+          b.disabled = true;
+        } else {
+          b.disabled = false;
+          b.checked = true;
+        }
+      }
+      p.addEventListener('change', sync);
+      sync();
+    })();
+
     sendBtn.addEventListener('click', send);
     inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
     function onUserIdChange() {
@@ -535,6 +1521,12 @@
       chatEl.innerHTML = '';
       saveSessionId('');
       refreshSessionList();
+      if (currentTab !== 'chat') {
+        loadCampaignOptions().then(function () {
+          renderPlansTable();
+          refreshPanelForTab();
+        });
+      }
     }
     userIdEl.addEventListener('change', onUserIdChange);
     userIdEl.addEventListener('blur', onUserIdChange);
@@ -553,6 +1545,19 @@
         sessionId = savedSessionId;
         sessionIdEl.textContent = sessionId.slice(0, 8) + '…';
         loadHistory(sessionId);
+      }
+      var hp = parseHashParams();
+      var initialTab = hp.tab || (function () { try { return localStorage.getItem(STORAGE_TAB) || 'chat'; } catch (e) { return 'chat'; } })();
+      if (['plans', 'effects', 'logs', 'creative'].indexOf(initialTab) < 0) {
+        initialTab = 'chat';
+      }
+      effectsFilterCreativeId = (hp.tab === 'effects' && hp.creativeId) ? hp.creativeId : '';
+      if (initialTab === 'effects' && effectsFilterCreativeId) {
+        switchTab('effects', { preserveCreativeFilter: true });
+      } else if (['plans', 'effects', 'logs', 'creative'].indexOf(initialTab) >= 0) {
+        switchTab(initialTab, { preserveCreativeFilter: false });
+      } else {
+        switchTab('chat');
       }
     })();
   </script>
