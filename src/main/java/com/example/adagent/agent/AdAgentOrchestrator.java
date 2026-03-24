@@ -94,7 +94,8 @@ public class AdAgentOrchestrator {
                     intentResult.getIntentType(), userInput, needsTool);
             logger.info("【AD Agent编排器】规划: {}", plan);
 
-            String response = ReplySanitizer.sanitizeFullReply(toolExecutionService.executeWithTools(enhancedPrompt));
+            String response = ReplySanitizer.sanitizeFullReply(
+                    toolExecutionService.executeWithTools(enhancedPrompt, plan));
 
             memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
             memoryService.addToShortTermMemory(sessionId, "assistant", response, userId);
@@ -182,8 +183,10 @@ public class AdAgentOrchestrator {
                 return Flux.just(privacy.message());
             }
             String enhancedPrompt = buildEnhancedPrompt(sessionId, userId, userInput, shortTermContext, longTermContext, intentResult, entityResult);
+            PlanningService.ExecutionPlan plan = planningService.createPlan(
+                    intentResult.getIntentType(), userInput, intentResult.isNeedsTool());
             StringBuilder fullContent = new StringBuilder();
-            return toolExecutionService.executeWithToolsStreamForUi(enhancedPrompt, null)
+            return toolExecutionService.executeWithToolsStreamForUi(enhancedPrompt, plan, null)
                     .doOnNext(chunk -> { if (chunk != null) fullContent.append(chunk); })
                     .doOnComplete(() -> {
                         memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
@@ -243,7 +246,7 @@ public class AdAgentOrchestrator {
             Flux<StreamEvent> thinkingEvent = Flux.just(StreamEvent.thinking(thinking.toString()));
             AtomicReference<StringBuilder> fullContent = new AtomicReference<>(new StringBuilder());
             Flux<StreamEvent> modelThenContent = Flux.create((FluxSink<StreamEvent> sink) -> {
-                var subscription = toolExecutionService.executeWithToolsStreamForUi(enhancedPrompt, dropped -> {
+                var subscription = toolExecutionService.executeWithToolsStreamForUi(enhancedPrompt, plan, dropped -> {
                     if (dropped != null && !dropped.isBlank()) {
                         sink.next(StreamEvent.thinking("模型侧过程（已从正文剥离）：\n" + dropped));
                     }
