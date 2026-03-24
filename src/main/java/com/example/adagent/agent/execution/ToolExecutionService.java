@@ -1,9 +1,13 @@
 package com.example.adagent.agent.execution;
 
+import com.example.adagent.agent.advisor.ExecutionPlanAdvisor;
+import com.example.adagent.agent.planning.ExecutionPlanFormatting;
+import com.example.adagent.agent.planning.PlanningService;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.lang.Nullable;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -29,9 +33,12 @@ public class ToolExecutionService {
         this.chatClient = chatClient;
     }
 
-    public String executeWithTools(String userInput) {
+    /**
+     * @param plan 非空且格式化后非空时，经 {@link ExecutionPlanAdvisor} 追加到 system；与每请求 {@code advisors(param)} 绑定，线程安全
+     */
+    public String executeWithTools(String userInput, @Nullable PlanningService.ExecutionPlan plan) {
         logger.info("【工具执行层】执行工具调用，输入长度: {}", userInput != null ? userInput.length() : 0);
-        String response = chatClient.prompt()
+        String response = applyPlan(chatClient.prompt(), plan)
                 .user(userInput)
                 .call()
                 .content();
@@ -39,12 +46,21 @@ public class ToolExecutionService {
         return response;
     }
 
+    private ChatClient.ChatClientRequestSpec applyPlan(ChatClient.ChatClientRequestSpec spec,
+                                                       @Nullable PlanningService.ExecutionPlan plan) {
+        String appendix = ExecutionPlanFormatting.toSystemAppendix(plan);
+        if (appendix.isBlank()) {
+            return spec;
+        }
+        return spec.advisors(a -> a.param(ExecutionPlanAdvisor.CONTEXT_KEY, appendix));
+    }
+
     /**
      * 原始流式输出（无过滤）。
      */
-    public Flux<String> executeWithToolsStream(String userInput) {
+    public Flux<String> executeWithToolsStream(String userInput, @Nullable PlanningService.ExecutionPlan plan) {
         logger.info("【工具执行层】流式执行工具调用");
-        return chatClient.prompt()
+        return applyPlan(chatClient.prompt(), plan)
                 .user(userInput)
                 .stream()
                 .content();
@@ -55,9 +71,11 @@ public class ToolExecutionService {
      *
      * @param strippedNarrationSink 非空时，在检测到完整开场白被剥离时回调一次（可写入「思考过程」）
      */
-    public Flux<String> executeWithToolsStreamForUi(String userInput, Consumer<String> strippedNarrationSink) {
+    public Flux<String> executeWithToolsStreamForUi(String userInput,
+                                                      @Nullable PlanningService.ExecutionPlan plan,
+                                                      Consumer<String> strippedNarrationSink) {
         logger.info("【工具执行层】流式执行工具调用（UI 过滤）");
-        Flux<String> source = chatClient.prompt()
+        Flux<String> source = applyPlan(chatClient.prompt(), plan)
                 .user(userInput)
                 .stream()
                 .content();
