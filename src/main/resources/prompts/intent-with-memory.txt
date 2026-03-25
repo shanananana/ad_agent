@@ -21,3 +21,4 @@
 用户输入: {userInput}
 
 返回 JSON，必须包含：intentType、needsTool。若为 INTENT_ADD_CAMPAIGN 还需包含：userExpressedSegmentPreference（true/false）、needClarification（true/false）、suggestedClarificationMessage（字符串，追问话术；若无需追问则填空字符串""）。若用户明确说了拆分维度，可包含 segmentByAge、segmentByRegion、segmentByDevice（true/false）。
+仅输出 JSON，不要调用任何工具，不要输出 Markdown 段落。

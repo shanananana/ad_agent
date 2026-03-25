@@ -1,5 +1,11 @@
 # 更新日志
 
+## [0.1.3]（2026-03-25）
+
+- **工具调用日志（状态机）**：注册主 `ToolCallingManager` Bean，委托 `DefaultToolCallingManager`，在每次工具执行前以 INFO 打印工具名与 JSON 参数（后续做状态机管理 在每一轮工具调用前做状态控制）。（2026-03-25）
+- **意图识别 / 长期记忆判断**：使用无工具 `noToolChatClient`（专用 system），避免与主对话共用带工具的 `ChatClient` 导致误调 `queryBaseData`、幻觉 `u123` 等 userId。（2026-03-25）
+
+
 ## [0.1.2]（2026-03-24）
 
 ### 对话工作台（`/chat.html`） +  创意素材生成(生图)（2026-03-24）

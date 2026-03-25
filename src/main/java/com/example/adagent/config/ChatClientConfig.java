@@ -78,4 +78,19 @@ public class ChatClientConfig {
                 .defaultAdvisors(simpleLoggerAdvisor)
                 .build();
     }
+
+    /**
+     * 意图识别、长期记忆是否保存等：无工具，避免与主对话共用带工具的 {@link ChatClient} 导致模型误调工具、幻觉 userId。
+     */
+    @Bean
+    @Qualifier("noToolChatClient")
+    public ChatClient noToolChatClient(
+            ChatModel chatModel,
+            SimpleLoggerAdvisor simpleLoggerAdvisor,
+            ClasspathPromptLoader classpathPromptLoader) {
+        return ChatClient.builder(chatModel)
+                .defaultSystem(classpathPromptLoader.loadText(PromptResourcePaths.NO_TOOL_CLASSIFIER_SYSTEM))
+                .defaultAdvisors(simpleLoggerAdvisor)
+                .build();
+    }
 }

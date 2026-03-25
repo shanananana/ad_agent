@@ -6,6 +6,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +31,10 @@ public class IntentRecognitionService {
     private static final Pattern BOOL_PATTERN = Pattern.compile("\"(userExpressedSegmentPreference|needClarification|segmentByAge|segmentByRegion|segmentByDevice)\"\\s*:\\s*(true|false)", Pattern.CASE_INSENSITIVE);
     private static final Pattern SUGGESTED_MSG_PATTERN = Pattern.compile("\"suggestedClarificationMessage\"\\s*:\\s*\"([^\"]*)\"", Pattern.CASE_INSENSITIVE);
 
-    public IntentRecognitionService(ChatClient chatClient, ClasspathPromptLoader classpathPromptLoader) {
-        this.chatClient = chatClient;
+    public IntentRecognitionService(
+            @Qualifier("noToolChatClient") ChatClient noToolChatClient,
+            ClasspathPromptLoader classpathPromptLoader) {
+        this.chatClient = noToolChatClient;
         this.intentWithMemoryPromptTemplate = classpathPromptLoader.loadTemplate(PromptResourcePaths.INTENT_WITH_MEMORY);
     }
 

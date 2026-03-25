@@ -7,6 +7,7 @@ import com.example.adagent.prompt.PromptResourcePaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -30,10 +31,10 @@ public class LongTermMemoryService {
 
     public LongTermMemoryService(
             LongTermMemoryRepository repository,
-            ChatClient chatClient,
+            @Qualifier("noToolChatClient") ChatClient noToolChatClient,
             ClasspathPromptLoader classpathPromptLoader) {
         this.repository = repository;
-        this.chatClient = chatClient;
+        this.chatClient = noToolChatClient;
         this.classpathPromptLoader = classpathPromptLoader;
     }
 
