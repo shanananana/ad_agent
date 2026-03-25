@@ -20,6 +20,9 @@ public final class PromptResourcePaths {
     /** 文生图「智能生成描述」：短 system，长上下文在用户模板中 */
     public static final String CREATIVE_SYSTEM = "creative-system.txt";
 
+    /** 意图识别、长期记忆判断等：无工具，禁止模型误调 queryBaseData 等 */
+    public static final String NO_TOOL_CLASSIFIER_SYSTEM = "no-tool-classifier-system.txt";
+
     // —— 意图识别（PromptTemplate）——
 
     /** 带长期记忆 + 最近对话的意图识别 user 模板 */
