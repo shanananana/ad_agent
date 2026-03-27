@@ -2,6 +2,8 @@ package com.example.adagent.agent.perception;
 
 import com.example.adagent.prompt.ClasspathPromptLoader;
 import com.example.adagent.prompt.PromptResourcePaths;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -18,6 +20,7 @@ import java.util.regex.Pattern;
 /**
  * 广告域<strong>意图识别</strong>：调用 LLM 判定用户本轮意图类型（效果/基础数据/加计划/改策略/
  * 清除长期记忆或聊天记录等），并输出是否需走工具链；提示中注入长期记忆与最近对话以识别简短确认类回复。
+ * <p>优先将模型输出按 JSON 解析为结构化结果，失败时降级为正则解析，再降级为关键词规则。</p>
  */
 @Service
 public class IntentRecognitionService {
@@ -25,6 +28,7 @@ public class IntentRecognitionService {
     private static final Logger logger = LoggerFactory.getLogger(IntentRecognitionService.class);
     private final ChatClient chatClient;
     private final PromptTemplate intentWithMemoryPromptTemplate;
+    private final ObjectMapper objectMapper;
 
     private static final Pattern INTENT_PATTERN = Pattern.compile("\"intentType\"\\s*:\\s*\"([^\"]+)\"", Pattern.CASE_INSENSITIVE);
     private static final Pattern NEEDS_TOOL_PATTERN = Pattern.compile("\"needsTool\"\\s*:\\s*(true|false)", Pattern.CASE_INSENSITIVE);
@@ -33,9 +37,11 @@ public class IntentRecognitionService {
 
     public IntentRecognitionService(
             @Qualifier("noToolChatClient") ChatClient noToolChatClient,
-            ClasspathPromptLoader classpathPromptLoader) {
+            ClasspathPromptLoader classpathPromptLoader,
+            ObjectMapper objectMapper) {
         this.chatClient = noToolChatClient;
         this.intentWithMemoryPromptTemplate = classpathPromptLoader.loadTemplate(PromptResourcePaths.INTENT_WITH_MEMORY);
+        this.objectMapper = objectMapper;
     }
 
     public IntentResult recognizeIntent(String userInput) {
@@ -74,11 +80,11 @@ public class IntentRecognitionService {
         }
     }
 
-    private IntentResult parseIntentResult(String content, String userInput) {
-        return parseIntentResult(content, userInput, false);
-    }
-
     private IntentResult parseIntentResult(String content, String userInput, boolean parseSegmentFields) {
+        IntentResult structured = tryParseStructuredJson(content, userInput);
+        if (structured != null) {
+            return structured;
+        }
         String intentType = null;
         Matcher im = INTENT_PATTERN.matcher(content);
         if (im.find()) {
@@ -130,6 +136,83 @@ public class IntentRecognitionService {
         return new IntentResult(intentType, needsTool, userInput,
                 segmentByAge, segmentByRegion, segmentByDevice,
                 userExpressedSegmentPreference, needClarification, suggestedClarificationMessage);
+    }
+
+    /**
+     * 从模型输出中提取 JSON 对象并反序列化；失败返回 null 以触发正则/关键词降级。
+     */
+    private IntentResult tryParseStructuredJson(String raw, String userInput) {
+        String json = extractJsonPayload(raw);
+        if (json == null) {
+            return null;
+        }
+        try {
+            IntentLlmJson o = objectMapper.readValue(json, IntentLlmJson.class);
+            if (o.intentType == null || o.intentType.isBlank() || o.needsTool == null) {
+                return null;
+            }
+            String intentType = normalizeIntentType(o.intentType.trim());
+            boolean needsTool = o.needsTool;
+            if ("INTENT_OTHER".equals(intentType) && !needsTool) {
+                return new IntentResult(intentType, false, userInput);
+            }
+            if (!"INTENT_ADD_CAMPAIGN".equals(intentType)) {
+                return new IntentResult(intentType, needsTool, userInput);
+            }
+            String suggested = o.suggestedClarificationMessage != null ? o.suggestedClarificationMessage : "";
+            return new IntentResult(intentType, needsTool, userInput,
+                    o.segmentByAge, o.segmentByRegion, o.segmentByDevice,
+                    Boolean.TRUE.equals(o.userExpressedSegmentPreference),
+                    Boolean.TRUE.equals(o.needClarification),
+                    suggested);
+        } catch (Exception e) {
+            logger.debug("【感知理解层】结构化 JSON 解析失败，使用正则降级: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private static String extractJsonPayload(String content) {
+        if (content == null) {
+            return null;
+        }
+        String s = content.trim();
+        if (s.startsWith("```")) {
+            int nl = s.indexOf('\n');
+            if (nl > 0) {
+                s = s.substring(nl + 1);
+            }
+            int fence = s.lastIndexOf("```");
+            if (fence >= 0) {
+                s = s.substring(0, fence);
+            }
+            s = s.trim();
+        }
+        int start = s.indexOf('{');
+        int end = s.lastIndexOf('}');
+        if (start < 0 || end <= start) {
+            return null;
+        }
+        return s.substring(start, end + 1);
+    }
+
+    private static String normalizeIntentType(String raw) {
+        String t = raw.toUpperCase();
+        if (!t.startsWith("INTENT_")) {
+            t = "INTENT_" + t;
+        }
+        return t;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private static final class IntentLlmJson {
+        public String intentType;
+        public Boolean needsTool;
+        public Boolean segmentByAge;
+        public Boolean segmentByRegion;
+        public Boolean segmentByDevice;
+        public Boolean userExpressedSegmentPreference;
+        public Boolean needClarification;
+        public String suggestedClarificationMessage;
     }
 
     private static String unescapeJsonString(String s) {

@@ -801,6 +801,13 @@
       const history = data.history || [];
       chatEl.innerHTML = '';
       history.forEach(function (m) {
+        if (m.role === 'assistant' && m.thinking && String(m.thinking).trim()) {
+          const think = document.createElement('div');
+          think.className = 'thinking';
+          think.innerHTML = '<details><summary>思考过程</summary><div class="body"></div></details>';
+          think.querySelector('.body').textContent = m.thinking;
+          chatEl.appendChild(think);
+        }
         const div = document.createElement('div');
         div.className = 'msg ' + (m.role === 'user' ? 'user' : 'assistant');
         if (m.role === 'assistant' && (m.content || '').trim()) {

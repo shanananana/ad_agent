@@ -1,7 +1,6 @@
 package com.example.adagent.service;
 
 import com.example.adagent.agent.AdAgentOrchestrator;
-import com.example.adagent.agent.ChatTurnResult;
 import com.example.adagent.agent.memory.MemoryService;
 import com.example.adagent.controller.StreamEvent;
 import com.example.adagent.data.ChatHistoryRepository;
@@ -11,16 +10,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-
 /**
  * 对话<strong>会话应用服务</strong>：创建与解析 {@code sessionId}、维护 session 与用户 ID 的内存映射，
- * 调用 {@link com.example.adagent.agent.AdAgentOrchestrator} 完成单轮对话，并协调 {@link com.example.adagent.agent.memory.MemoryService}
- * 与 {@link com.example.adagent.data.ChatHistoryRepository} 的持久化；对外提供同步 JSON 与 SSE 流式两种接口。
+ * 调用 {@link com.example.adagent.agent.AdAgentOrchestrator#executeStreamWithThinking} 完成单轮对话，
+ * 并协调 {@link com.example.adagent.agent.memory.MemoryService} 与 {@link com.example.adagent.data.ChatHistoryRepository} 的持久化。
  */
 @Service
 public class AdChatSessionService {
@@ -55,42 +54,6 @@ public class AdChatSessionService {
         return sessionId;
     }
 
-    public ChatTurnResult chat(String sessionId, String userMessage) {
-        try {
-            String userId = sessionToUserMap.getOrDefault(sessionId, null);
-            if (!memoryService.isImmediateLongTermFlush()) {
-                memoryService.maybeFlushLongTermMemory(sessionId, userId);
-            }
-            ChatTurnResult turn = agentOrchestrator.execute(sessionId, userId, userMessage);
-            if (memoryService.isImmediateLongTermFlush()) {
-                memoryService.flushRoundToLongTermMemory(sessionId, userId);
-            } else {
-                memoryService.updateLastActivity(sessionId);
-            }
-            return turn;
-        } catch (Exception e) {
-            logger.error("AD Agent 处理请求时发生错误", e);
-            return ChatTurnResult.of("抱歉，处理您的请求时遇到了问题。请稍后再试。");
-        }
-    }
-
-    public Flux<String> streamChat(String sessionId, String userMessage) {
-        String userId = sessionToUserMap.getOrDefault(sessionId, null);
-        final String sid = sessionId;
-        final String uid = userId;
-        if (!memoryService.isImmediateLongTermFlush()) {
-            memoryService.maybeFlushLongTermMemory(sid, uid);
-        }
-        Flux<String> flux = agentOrchestrator.executeStream(sessionId, userId, userMessage);
-        return flux.doOnComplete(() -> {
-            if (memoryService.isImmediateLongTermFlush()) {
-                memoryService.flushRoundToLongTermMemory(sid, uid);
-            } else {
-                memoryService.updateLastActivity(sid);
-            }
-        });
-    }
-
     public Flux<StreamEvent> streamChatWithThinking(String sessionId, String userMessage) {
         String userId = sessionToUserMap.getOrDefault(sessionId, null);
         final String sid = sessionId;
@@ -110,11 +73,17 @@ public class AdChatSessionService {
 
     public List<Map<String, String>> getHistory(String sessionId) {
         memoryService.ensureSessionLoadedFromStorage(sessionId);
-        return memoryService.getShortTermMemoryMessages(sessionId).stream()
-                .map(m -> Map.of(
-                        "role", m.getRole(),
-                        "content", m.getContent()))
-                .collect(Collectors.toList());
+        List<Map<String, String>> out = new ArrayList<>();
+        for (var m : memoryService.getShortTermMemoryMessages(sessionId)) {
+            Map<String, String> row = new LinkedHashMap<>();
+            row.put("role", m.getRole());
+            row.put("content", m.getContent() != null ? m.getContent() : "");
+            if (m.getThinking() != null && !m.getThinking().isBlank()) {
+                row.put("thinking", m.getThinking());
+            }
+            out.add(row);
+        }
+        return out;
     }
 
     public List<UserSessionsIndex.SessionMeta> listSessionsByUser(String userId) {

@@ -1,6 +1,5 @@
 package com.example.adagent.agent;
 
-import com.example.adagent.agent.execution.ReplySanitizer;
 import com.example.adagent.agent.execution.ToolExecutionService;
 import com.example.adagent.agent.memory.MemoryService;
 import com.example.adagent.agent.perception.EntityExtractionService;
@@ -20,13 +19,14 @@ import reactor.core.publisher.FluxSink;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 对话式投放 Agent 编排核心：单轮内串联<strong>意图识别 → 实体抽取 → 规划（CoT / ReAct）→ 工具执行</strong>，
  * 并读写短期/长期记忆与聊天历史。
  * <p>对<strong>隐私清除</strong>类意图在服务端同步删除磁盘文件后短路返回，并可建议前端刷新。
- * 流式输出路径配合 {@link com.example.adagent.agent.execution.ReplySanitizer} 净化用户可见正文。</p>
+ * 对外仅暴露 {@link #executeStreamWithThinking}，供 {@code chat.html} SSE 使用。</p>
  */
 @Service
 public class AdAgentOrchestrator {
@@ -60,50 +60,99 @@ public class AdAgentOrchestrator {
         this.adChatSessionService = adChatSessionService;
     }
 
-    public ChatTurnResult execute(String sessionId, String userId, String userInput) {
-        logger.info("【AD Agent编排器】会话: {}, 用户: {}, 输入: {}", sessionId, userId, userInput);
+    /**
+     * 并行加载长期 / 短期记忆上下文，缩短首包前耗时。
+     */
+    private MemoryContexts loadMemoryContextsParallel(String sessionId, String userId, String userInput) {
+        CompletableFuture<String> longTerm = CompletableFuture.supplyAsync(
+                () -> memoryService.getLongTermContext(userId, userInput));
+        CompletableFuture<String> shortTerm = CompletableFuture.supplyAsync(
+                () -> memoryService.getShortTermContext(sessionId));
+        CompletableFuture.allOf(longTerm, shortTerm).join();
+        return new MemoryContexts(longTerm.join(), shortTerm.join());
+    }
+
+    private record MemoryContexts(String longTermContext, String shortTermContext) {}
+
+    /**
+     * 流式执行并产出「思考过程」事件 + 内容流，便于前端展示。
+     */
+    public Flux<StreamEvent> executeStreamWithThinking(String sessionId, String userId, String userInput) {
+        logger.info("【AD Agent编排器】流式(含思考) 会话: {}, 用户: {}, 输入: {}", sessionId, userId, userInput);
         try {
-            String longTermContext = memoryService.getLongTermContext(userId, userInput);
-            String shortTermContext = memoryService.getShortTermContext(sessionId);
-            IntentRecognitionService.IntentResult intentResult = intentRecognitionService.recognizeIntent(userInput, longTermContext, shortTermContext);
+            MemoryContexts ctx = loadMemoryContextsParallel(sessionId, userId, userInput);
+            IntentRecognitionService.IntentResult intentResult =
+                    intentRecognitionService.recognizeIntent(userInput, ctx.longTermContext(), ctx.shortTermContext());
             EntityExtractionService.EntityResult entityResult = entityExtractionService.extractEntities(userInput);
             logger.info("【AD Agent编排器】感知 - 意图: {}, 实体: {}", intentResult, entityResult);
-
             if (isAddCampaignClarification(intentResult)) {
                 String msg = intentResult.getSuggestedClarificationMessage();
                 if (msg != null && !msg.isBlank()) {
+                    String clarifyThinking = "意图: INTENT_ADD_CAMPAIGN\n说明: 需先向用户澄清投放计划拆分方式（未走工具链路）。";
                     memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
-                    memoryService.addToShortTermMemory(sessionId, "assistant", msg, userId);
-                    logger.info("【AD Agent编排器】加计划追问，不调用工具");
-                    return ChatTurnResult.of(msg);
+                    memoryService.addToShortTermMemory(sessionId, "assistant", msg, userId, clarifyThinking);
+                    return Flux.just(StreamEvent.thinking(clarifyThinking), StreamEvent.content(msg));
                 }
             }
-
             PrivacyClearHandled privacy = runServerSidePrivacyClearIfApplicable(intentResult, userId, sessionId);
             if (privacy != null) {
                 memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
-                memoryService.addToShortTermMemory(sessionId, "assistant", privacy.message(), userId);
-                logger.info("【AD Agent编排器】服务端已执行隐私清除，跳过工具链路");
-                return ChatTurnResult.of(privacy.message(), privacy.suggestPageRefresh());
+                String thinking = "意图: " + intentResult.getIntentType() + "\n服务端已执行隐私数据删除（不依赖模型调工具）。";
+                memoryService.addToShortTermMemory(sessionId, "assistant", privacy.message(), userId, thinking);
+                if (privacy.suggestPageRefresh()) {
+                    return Flux.just(
+                            StreamEvent.thinking(thinking),
+                            StreamEvent.content(privacy.message()),
+                            StreamEvent.client("{\"reload\":true}"));
+                }
+                return Flux.just(StreamEvent.thinking(thinking), StreamEvent.content(privacy.message()));
             }
-
-            String enhancedPrompt = buildEnhancedPrompt(sessionId, userId, userInput, shortTermContext, longTermContext, intentResult, entityResult);
-
+            String enhancedPrompt = buildEnhancedPrompt(sessionId, userId, userInput, ctx.shortTermContext(),
+                    ctx.longTermContext(), intentResult, entityResult);
             boolean needsTool = intentResult.isNeedsTool();
             PlanningService.ExecutionPlan plan = planningService.createPlan(
                     intentResult.getIntentType(), userInput, needsTool);
-            logger.info("【AD Agent编排器】规划: {}", plan);
 
-            String response = ReplySanitizer.sanitizeFullReply(
-                    toolExecutionService.executeWithTools(enhancedPrompt, plan));
+            StringBuilder planningThinking = new StringBuilder();
+            planningThinking.append("意图: ").append(intentResult.getIntentType()).append("\n");
+            planningThinking.append("需要工具: ").append(needsTool).append("\n");
+            planningThinking.append("规划: ").append(plan.getPlanType());
+            if (!plan.getRequiredTools().isEmpty()) {
+                planningThinking.append("，工具: ").append(String.join(", ", plan.getRequiredTools()));
+            }
+            planningThinking.append("\n").append(plan.getReasoning());
 
-            memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
-            memoryService.addToShortTermMemory(sessionId, "assistant", response, userId);
-            logger.info("【AD Agent编排器】执行完成");
-            return ChatTurnResult.of(response);
+            StringBuilder allThinking = new StringBuilder(planningThinking.toString());
+            Flux<StreamEvent> thinkingEvent = Flux.just(StreamEvent.thinking(planningThinking.toString()));
+            AtomicReference<StringBuilder> fullContent = new AtomicReference<>(new StringBuilder());
+            Flux<StreamEvent> modelThenContent = Flux.create((FluxSink<StreamEvent> sink) -> {
+                var subscription = toolExecutionService.executeWithToolsStreamForUi(enhancedPrompt, plan, dropped -> {
+                    if (dropped != null && !dropped.isBlank()) {
+                        String piece = "模型侧过程（已从正文剥离）：\n" + dropped;
+                        allThinking.append('\n').append(piece);
+                        sink.next(StreamEvent.thinking(piece));
+                    }
+                }).subscribe(
+                        chunk -> {
+                            if (chunk != null) {
+                                fullContent.get().append(chunk);
+                                sink.next(StreamEvent.content(chunk));
+                            }
+                        },
+                        sink::error,
+                        () -> {
+                            String reply = fullContent.get().toString();
+                            memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
+                            memoryService.addToShortTermMemory(sessionId, "assistant", reply, userId, allThinking.toString().trim());
+                            sink.complete();
+                        });
+                sink.onDispose(subscription::dispose);
+            }, FluxSink.OverflowStrategy.BUFFER);
+            return thinkingEvent.concatWith(modelThenContent);
         } catch (Exception e) {
-            logger.error("【AD Agent编排器】执行失败", e);
-            return ChatTurnResult.of("抱歉，处理您的请求时遇到了问题。请稍后再试。");
+            logger.error("【AD Agent编排器】流式(含思考)执行失败", e);
+            return Flux.just(StreamEvent.thinking("执行异常: " + e.getMessage()),
+                    StreamEvent.content("抱歉，处理您的请求时遇到了问题。请稍后再试。"));
         }
     }
 
@@ -159,119 +208,6 @@ public class AdAgentOrchestrator {
         return new PrivacyClearHandled(
                 "已在服务端删除您的全部聊天记录（含索引与 sessions 目录下属于您的会话文件），当前会话上下文已清空。",
                 true);
-    }
-
-    public Flux<String> executeStream(String sessionId, String userId, String userInput) {
-        logger.info("【AD Agent编排器】流式 会话: {}, 用户: {}, 输入: {}", sessionId, userId, userInput);
-        try {
-            String longTermContext = memoryService.getLongTermContext(userId, userInput);
-            String shortTermContext = memoryService.getShortTermContext(sessionId);
-            IntentRecognitionService.IntentResult intentResult = intentRecognitionService.recognizeIntent(userInput, longTermContext, shortTermContext);
-            EntityExtractionService.EntityResult entityResult = entityExtractionService.extractEntities(userInput);
-            if (isAddCampaignClarification(intentResult)) {
-                String msg = intentResult.getSuggestedClarificationMessage();
-                if (msg != null && !msg.isBlank()) {
-                    memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
-                    memoryService.addToShortTermMemory(sessionId, "assistant", msg, userId);
-                    return Flux.just(msg);
-                }
-            }
-            PrivacyClearHandled privacy = runServerSidePrivacyClearIfApplicable(intentResult, userId, sessionId);
-            if (privacy != null) {
-                memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
-                memoryService.addToShortTermMemory(sessionId, "assistant", privacy.message(), userId);
-                return Flux.just(privacy.message());
-            }
-            String enhancedPrompt = buildEnhancedPrompt(sessionId, userId, userInput, shortTermContext, longTermContext, intentResult, entityResult);
-            PlanningService.ExecutionPlan plan = planningService.createPlan(
-                    intentResult.getIntentType(), userInput, intentResult.isNeedsTool());
-            StringBuilder fullContent = new StringBuilder();
-            return toolExecutionService.executeWithToolsStreamForUi(enhancedPrompt, plan, null)
-                    .doOnNext(chunk -> { if (chunk != null) fullContent.append(chunk); })
-                    .doOnComplete(() -> {
-                        memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
-                        memoryService.addToShortTermMemory(sessionId, "assistant", fullContent.toString(), userId);
-                    });
-        } catch (Exception e) {
-            logger.error("【AD Agent编排器】流式执行失败", e);
-            return Flux.just("抱歉，处理您的请求时遇到了问题。请稍后再试。");
-        }
-    }
-
-    /**
-     * 流式执行并产出「思考过程」事件 + 内容流，便于前端展示。
-     */
-    public Flux<StreamEvent> executeStreamWithThinking(String sessionId, String userId, String userInput) {
-        logger.info("【AD Agent编排器】流式(含思考) 会话: {}, 用户: {}, 输入: {}", sessionId, userId, userInput);
-        try {
-            String longTermContext = memoryService.getLongTermContext(userId, userInput);
-            String shortTermContext = memoryService.getShortTermContext(sessionId);
-            IntentRecognitionService.IntentResult intentResult = intentRecognitionService.recognizeIntent(userInput, longTermContext, shortTermContext);
-            EntityExtractionService.EntityResult entityResult = entityExtractionService.extractEntities(userInput);
-            if (isAddCampaignClarification(intentResult)) {
-                String msg = intentResult.getSuggestedClarificationMessage();
-                if (msg != null && !msg.isBlank()) {
-                    memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
-                    memoryService.addToShortTermMemory(sessionId, "assistant", msg, userId);
-                    return Flux.just(StreamEvent.content(msg));
-                }
-            }
-            PrivacyClearHandled privacy = runServerSidePrivacyClearIfApplicable(intentResult, userId, sessionId);
-            if (privacy != null) {
-                memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
-                memoryService.addToShortTermMemory(sessionId, "assistant", privacy.message(), userId);
-                String thinking = "意图: " + intentResult.getIntentType() + "\n服务端已执行隐私数据删除（不依赖模型调工具）。";
-                if (privacy.suggestPageRefresh()) {
-                    return Flux.just(
-                            StreamEvent.thinking(thinking),
-                            StreamEvent.content(privacy.message()),
-                            StreamEvent.client("{\"reload\":true}"));
-                }
-                return Flux.just(StreamEvent.thinking(thinking), StreamEvent.content(privacy.message()));
-            }
-            String enhancedPrompt = buildEnhancedPrompt(sessionId, userId, userInput, shortTermContext, longTermContext, intentResult, entityResult);
-            boolean needsTool = intentResult.isNeedsTool();
-            PlanningService.ExecutionPlan plan = planningService.createPlan(
-                    intentResult.getIntentType(), userInput, needsTool);
-
-            StringBuilder thinking = new StringBuilder();
-            thinking.append("意图: ").append(intentResult.getIntentType()).append("\n");
-            thinking.append("需要工具: ").append(needsTool).append("\n");
-            thinking.append("规划: ").append(plan.getPlanType());
-            if (!plan.getRequiredTools().isEmpty()) {
-                thinking.append("，工具: ").append(String.join(", ", plan.getRequiredTools()));
-            }
-            thinking.append("\n").append(plan.getReasoning());
-
-            Flux<StreamEvent> thinkingEvent = Flux.just(StreamEvent.thinking(thinking.toString()));
-            AtomicReference<StringBuilder> fullContent = new AtomicReference<>(new StringBuilder());
-            Flux<StreamEvent> modelThenContent = Flux.create((FluxSink<StreamEvent> sink) -> {
-                var subscription = toolExecutionService.executeWithToolsStreamForUi(enhancedPrompt, plan, dropped -> {
-                    if (dropped != null && !dropped.isBlank()) {
-                        sink.next(StreamEvent.thinking("模型侧过程（已从正文剥离）：\n" + dropped));
-                    }
-                }).subscribe(
-                        chunk -> {
-                            if (chunk != null) {
-                                fullContent.get().append(chunk);
-                                sink.next(StreamEvent.content(chunk));
-                            }
-                        },
-                        sink::error,
-                        () -> {
-                            String reply = fullContent.get().toString();
-                            memoryService.addToShortTermMemory(sessionId, "user", userInput, userId);
-                            memoryService.addToShortTermMemory(sessionId, "assistant", reply, userId);
-                            sink.complete();
-                        });
-                sink.onDispose(subscription::dispose);
-            }, FluxSink.OverflowStrategy.BUFFER);
-            return thinkingEvent.concatWith(modelThenContent);
-        } catch (Exception e) {
-            logger.error("【AD Agent编排器】流式(含思考)执行失败", e);
-            return Flux.just(StreamEvent.thinking("执行异常: " + e.getMessage()),
-                    StreamEvent.content("抱歉，处理您的请求时遇到了问题。请稍后再试。"));
-        }
     }
 
     private String buildEnhancedPrompt(String sessionId, String userId, String userInput, String shortTermContext, String longTermContext,
