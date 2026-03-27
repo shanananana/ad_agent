@@ -29,15 +29,30 @@ public class ChatSessionRecord {
     public List<MessageEntry> getMessages() { return messages; }
     public void setMessages(List<MessageEntry> messages) { this.messages = messages != null ? messages : new ArrayList<>(); }
 
-    /** 会话内单条消息：角色与正文，与时间顺序一致。 */
+    /** 会话内单条消息：角色与正文，与时间顺序一致；助手消息可带 {@code thinking}（仅展示用，不参与意图上下文）。 */
     public static class MessageEntry {
         private String role;
         private String content;
+        /** 助手轮次的思考过程（可选）；旧数据无此字段。 */
+        private String thinking;
+
         public MessageEntry() {}
-        public MessageEntry(String role, String content) { this.role = role; this.content = content; }
+
+        public MessageEntry(String role, String content) {
+            this(role, content, null);
+        }
+
+        public MessageEntry(String role, String content, String thinking) {
+            this.role = role;
+            this.content = content;
+            this.thinking = thinking;
+        }
+
         public String getRole() { return role; }
         public void setRole(String role) { this.role = role; }
         public String getContent() { return content; }
         public void setContent(String content) { this.content = content; }
+        public String getThinking() { return thinking; }
+        public void setThinking(String thinking) { this.thinking = thinking; }
     }
 }

@@ -91,6 +91,13 @@ public class ChatHistoryRepository {
 
     /** 追加一条消息 */
     public void appendMessage(String sessionId, String role, String content) {
+        appendMessage(sessionId, role, content, null);
+    }
+
+    /**
+     * 追加一条消息；{@code thinking} 仅对助手消息有意义，写入会话 JSON 供历史恢复展示。
+     */
+    public void appendMessage(String sessionId, String role, String content, String thinking) {
         if (sessionId == null || sessionId.isBlank()) {
             return;
         }
@@ -101,7 +108,8 @@ public class ChatHistoryRepository {
             if (record == null) {
                 return;
             }
-            record.getMessages().add(new ChatSessionRecord.MessageEntry(role, content));
+            String t = (thinking != null && !thinking.isBlank() && "assistant".equals(role)) ? thinking.trim() : null;
+            record.getMessages().add(new ChatSessionRecord.MessageEntry(role, content, t));
             if (record.getMessages().size() > MAX_MESSAGES_PER_SESSION) {
                 record.setMessages(new ArrayList<>(record.getMessages().subList(record.getMessages().size() - MAX_MESSAGES_PER_SESSION, record.getMessages().size())));
             }

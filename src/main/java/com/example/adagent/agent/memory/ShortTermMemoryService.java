@@ -20,17 +20,25 @@ public class ShortTermMemoryService {
     private final Map<String, List<ChatMessage>> sessionMemories = new ConcurrentHashMap<>();
     private static final int DEFAULT_MAX_MESSAGES = 10;
 
-    /** 会话内单条消息：角色（user/assistant 等）与文本内容。 */
+    /** 会话内单条消息：角色（user/assistant 等）与文本内容；助手可带思考过程（仅持久化/展示，不注入意图上下文）。 */
     public static class ChatMessage {
         private final String role;
         private final String content;
+        private final String thinking;
 
         public ChatMessage(String role, String content) {
+            this(role, content, null);
+        }
+
+        public ChatMessage(String role, String content, String thinking) {
             this.role = role;
             this.content = content;
+            this.thinking = thinking;
         }
+
         public String getRole() { return role; }
         public String getContent() { return content; }
+        public String getThinking() { return thinking; }
     }
 
     public List<ChatMessage> getOrCreateMemory(String sessionId) {
@@ -38,8 +46,12 @@ public class ShortTermMemoryService {
     }
 
     public void addMessage(String sessionId, String role, String content) {
+        addMessage(sessionId, role, content, null);
+    }
+
+    public void addMessage(String sessionId, String role, String content, String thinking) {
         List<ChatMessage> messages = getOrCreateMemory(sessionId);
-        messages.add(new ChatMessage(role, content));
+        messages.add(new ChatMessage(role, content, thinking));
         while (messages.size() > DEFAULT_MAX_MESSAGES) {
             messages.remove(0);
         }

@@ -51,9 +51,16 @@ public class MemoryService {
 
     /** 追加消息并可选持久化（有 userId 时写入聊天记录文件） */
     public void addToShortTermMemory(String sessionId, String role, String content, String userId) {
-        shortTermMemoryService.addMessage(sessionId, role, content);
+        addToShortTermMemory(sessionId, role, content, userId, null);
+    }
+
+    /**
+     * 追加消息并可选持久化；{@code thinking} 仅对 {@code assistant} 有效，落盘供刷新后展示思考过程。
+     */
+    public void addToShortTermMemory(String sessionId, String role, String content, String userId, String thinking) {
+        shortTermMemoryService.addMessage(sessionId, role, content, thinking);
         if (userId != null && !userId.isBlank()) {
-            chatHistoryRepository.appendMessage(sessionId, role, content);
+            chatHistoryRepository.appendMessage(sessionId, role, content, thinking);
         }
     }
 
@@ -73,7 +80,7 @@ public class MemoryService {
         ChatSessionRecord record = chatHistoryRepository.loadSession(sessionId);
         if (record == null || record.getMessages() == null) return;
         List<ShortTermMemoryService.ChatMessage> list = record.getMessages().stream()
-                .map(m -> new ShortTermMemoryService.ChatMessage(m.getRole(), m.getContent()))
+                .map(m -> new ShortTermMemoryService.ChatMessage(m.getRole(), m.getContent(), m.getThinking()))
                 .collect(Collectors.toList());
         shortTermMemoryService.setMessages(sessionId, list);
         logger.debug("【记忆】从存储加载会话 {} 共 {} 条消息", sessionId, list.size());

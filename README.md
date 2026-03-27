@@ -257,7 +257,7 @@ ad_agent/
 │   │   ├── CreativeAssetWebConfig.java  # 创意图片静态资源映射（data/creative/assets）
 │   │   └── DashScopeRestClientTimeoutConfig.java  # DashScope HTTP 超时（含文生图）
 │   ├── controller/
-│   │   ├── AdAgentController.java       # REST：对话、会话、历史、删除、流式
+│   │   ├── AdAgentController.java       # REST：会话、历史、删除、流式（SSE 含思考）
 │   │   ├── BidStrategyController.java   # REST：计划列表/详情/效果、performance-series、performance-sparklines、按计划 B×α、job-log、快照
 │   │   └── StreamEvent.java             # 流式事件（thinking / content / client）
 │   ├── creative/                        # 创意：描述建议、文生图、内容库 / 全局素材 API
@@ -268,8 +268,7 @@ ad_agent/
 │   ├── service/
 │   │   └── AdChatSessionService.java    # 会话与用户绑定、创建/清除/删除、编排调用
 │   ├── agent/                           # Agent 核心
-│   │   ├── AdAgentOrchestrator.java     # 编排：感知 → 规划 → 工具执行 → 记忆；隐私意图服务端删盘 + ChatTurnResult
-│   │   ├── ChatTurnResult.java          # 单轮结果：response、suggestPageRefresh
+│   │   ├── AdAgentOrchestrator.java     # 编排：感知 → 规划 → 工具执行 → 记忆；隐私意图服务端删盘；仅 stream-with-thinking
 │   │   ├── perception/                  # 感知层
 │   │   │   ├── IntentRecognitionService.java   # 意图识别（千问）
 │   │   │   └── EntityExtractionService.java     # 实体抽取
@@ -352,9 +351,9 @@ ad_agent/
 
 1. **请求进入**：Controller 接收对话请求，带 `sessionId`、可选 `userId`。
 2. **会话与用户**：若无 `sessionId` 则创建会话（可带 `userId` 并持久化）；`userId` 用于绑定当前用户，后续工具与记忆均按用户隔离。
-3. **编排**：Orchestrator 串联感知（意图 + 实体；意图识别时注入最近对话以识别简短确认）→ 若为**隐私清除类意图**且 `needsTool=true`，则**先在服务端删除**对应长期记忆文件与/或聊天记录文件，并返回 `ChatTurnResult`（可带 `suggestPageRefresh`），**不再走**后续工具链路；否则 → 规划（CoT/ReAct）→ 构建增强 Prompt（含长期记忆、短期记忆、当前用户 ID 提示）→ 工具执行（ChatClient 调用 queryBaseData、queryPerformance、addCampaign、adjustStrategy、UserPrivacyTools 等，均传 `userId`）。
+3. **编排**：Orchestrator 串联感知（意图 + 实体；意图识别时注入最近对话以识别简短确认；**并行加载**长/短期记忆上下文；意图结果**优先 JSON 结构化解析**）→ 若为**隐私清除类意图**且 `needsTool=true`，则**先在服务端删除**对应长期记忆文件与/或聊天记录文件，经 SSE 返回正文并可追加 `client` 事件建议刷新，**不再走**后续工具链路；否则 → 规划（CoT/ReAct）→ 构建增强 Prompt（含长期记忆、短期记忆、当前用户 ID 提示）→ 工具执行（ChatClient 调用 queryBaseData、queryPerformance、addCampaign、adjustStrategy、UserPrivacyTools 等，均传 `userId`）。
 4. **记忆**：短期记忆在内存中维护当前会话消息；长期记忆在每轮或空闲后由 LLM 判断是否写入用户习惯/偏好，并做与已有记忆的去重；聊天记录在每轮结束后追加到会话文件，并在拉历史时从文件加载。
-5. **响应**：同步返回 `response` + `suggestPageRefresh`，或 SSE 流式返回（含思考过程事件；清除成功时可追加 `client` 事件）。
+5. **响应**：对话主路径为 **`POST /api/ad-agent/stream-with-thinking`（SSE）**，含 `thinking` / `content` 事件；隐私清除成功时可追加 `client` 事件（如 `{"reload":true}`）。
 6. **创意与文生图（并行能力）**：广告组维度素材生成、内容库与全局素材读写主要由 **`creative/*` 包与 REST** 及 **`chat.html` / `creative-gen.html` 前端**完成，**不经过** `AdAgentOrchestrator` 的对话链路；编排器负责对话侧意图、工具与记忆。
 
 ### 数据隔离
@@ -362,7 +361,7 @@ ad_agent/
 - **基础数据**：只读模板 `_template_campaigns.json`（计划树内广告组 `creativeIds` 引用全局素材 UUID）、`_template_creatives.json`、`_template_contents.json`，应用禁止修改。新用户无对应文件时从模板复制；素材图片持久化在 `data/creative/assets/{userId}/`。
 - **效果数据**：按用户写入 `data/performance/users/{userId}/performance.json`，加计划/改策略时为该用户生成效果数据。
 - **长期记忆**：按用户写入 `data/long_term_memory/{userId}.json`，检索时取该用户最近若干条注入上下文。
-- **聊天记录**：按会话存 `data/chat/sessions/{sessionId}.json`，按用户建索引 `data/chat/users/{userId}/sessions.json`，支持多会话、拉历史、删除会话；批量清除时同时扫描 sessions 目录，避免索引与磁盘不一致导致残留。
+- **聊天记录**：按会话存 `data/chat/sessions/{sessionId}.json`，按用户建索引 `data/chat/users/{userId}/sessions.json`，支持多会话、拉历史、删除会话；助手消息可含 **`thinking`**（思考过程，仅展示，不参与意图上下文）；批量清除时同时扫描 sessions 目录，避免索引与磁盘不一致导致残留。
 
 ### 模块职责
 

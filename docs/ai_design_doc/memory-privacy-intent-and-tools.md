@@ -58,7 +58,7 @@
 
 因此 **`AdAgentOrchestrator` 在意图识别为三类隐私意图之一且 `needsTool=true` 时，在调用工具链路之前直接在服务端执行删除**（与工具逻辑一致），保证 `long_term_memory` 与 `chat/sessions` 下的文件被真实删除。`@Tool` 仍保留，便于观测或其它入口复用。
 
-**清除成功后的前端刷新**：磁盘删除成功时 `suggestPageRefresh=true`。同步接口 `/api/ad-agent/chat`、`/chat-with-history` 的 JSON 中带字段 `suggestPageRefresh`；流式接口 `/stream-with-thinking` 在内容结束后追加 SSE `event: client`，`data: {"reload":true}`。静态页 `chat.html` 收到后清除本地保存的 `sessionId` 并 `location.reload()`。
+**清除成功后的前端刷新**：磁盘删除成功时由流式接口 **`POST /api/ad-agent/stream-with-thinking`** 在适当时机追加 SSE `event: client`，`data: {"reload":true}`。静态页 `chat.html` 收到后清除本地保存的 `sessionId` 并 `location.reload()`。
 
 清除聊天时，`ChatHistoryRepository#collectSessionIdsForUser` 除读取用户索引外，会 **扫描 `data/chat/sessions/*.json`**，按文件内 `userId` 合并会话 ID，避免索引与磁盘不一致导致漏删。
 
