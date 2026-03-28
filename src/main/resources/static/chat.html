@@ -553,7 +553,7 @@
       <div id="panel-creative" class="panel hidden">
         <div class="panel-scroll">
           <h2 class="panel-h2">素材生成（广告组维度）</h2>
-          <p class="panel-meta">左侧先选<strong>当前计划</strong>；广告组用于出图与绑定；统计范围：有组则收窄到该组，否则整计划。可选内容库、<strong>版位</strong>（控制提示模板里的建议长宽比与安全区）。「智能生成描述」服务端用 PromptTemplate 动态插入各块再调 LLM。保存需 base64。</p>
+          <p class="panel-meta">左侧先选<strong>当前计划</strong>；广告组用于出图与绑定。可选内容库、<strong>版位</strong>。「智能生成描述」用 PromptTemplate 拼上下文再调 LLM。<strong>一键生成（描述+出图）</strong>：画面描述<strong>留空</strong>则自动写描述再出图；<strong>有内容</strong>则直接用该段文字出图。仍可分步点「智能生成描述」再「生成图片」。保存需 base64。</p>
           <div class="cr-form">
             <label for="crAdGroup">广告组</label>
             <select id="crAdGroup"><option value="">请先选左侧计划并刷新</option></select>
@@ -570,7 +570,7 @@
             <div class="cr-prompt-block">
               <label for="crPrompt">画面描述</label>
               <div class="cr-prompt-row">
-                <textarea id="crPrompt" placeholder="可先写简短草稿，再点右侧「智能生成描述」；生成结果会按语义换行"></textarea>
+                <textarea id="crPrompt" placeholder="技能一键：留空=对话里先描述再出图；填写=用你的文字直接出图。分步：可先写草稿再点「智能生成描述」"></textarea>
                 <button type="button" class="btn-suggest-side" id="btnSuggestPrompt">智能生成<br>描述</button>
               </div>
             </div>
@@ -581,8 +581,9 @@
               <label><input type="checkbox" id="crBind" checked disabled> 保存后绑定到当前广告组</label>
               <label><input type="checkbox" id="crPrepend"> 绑定时插到队首（优先展示）</label>
             </div>
-            <div class="panel-toolbar" style="margin-top:12px">
-              <button type="button" class="primary" id="btnCrGenerate">生成图片</button>
+            <div class="panel-toolbar" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+              <button type="button" class="primary" id="btnCrOneShot">一键走对话 Agent（技能驱动）</button>
+              <button type="button" id="btnCrGenerate">仅生成图片</button>
             </div>
             <div id="crStatus" class="status-line" aria-live="polite"></div>
             <div class="cr-preview" id="crPreview"></div>
@@ -597,6 +598,7 @@
     const BID_API = '/api/ad-agent/bid-strategy';
     const CREATIVE_API = '/api/ad-agent/creative/generate';
     const SUGGEST_PROMPT_API = '/api/ad-agent/creative/suggest-prompt';
+    const MATERIAL_AGENT_API = '/api/ad-agent/creative/material-agent-run';
     const CATALOG_API = '/api/ad-agent/catalog/bind-creative';
     const CONTENTS_API = '/api/ad-agent/catalog/contents';
     const STORAGE_USER = 'adAgentUserId';
@@ -923,24 +925,25 @@
       if (userIdEl) userIdEl.focus();
     }
 
-    async function send() {
-      const text = (inputEl.value || '').trim();
-      if (!text) return;
+    /**
+     * 向主对话 Agent 发送一条用户消息并消费 SSE（thinking / content），与输入框 send() 共用。
+     * @param {string} message 已 trim 的完整用户消息
+     */
+    async function postStreamWithThinking(message) {
+      if (!message) return;
       if (!getUserId() || !getUserId().trim()) {
         showUidRequiredModal();
         return;
       }
       await ensureSession();
-      inputEl.value = '';
-      sendBtn.disabled = true;
       chatEl.querySelectorAll('.thinking.thinking-slot').forEach(function (el) {
         el.classList.remove('thinking-slot');
       });
-      appendUserMessage(text);
+      appendUserMessage(message);
 
       try {
         const uid = getUserId();
-        const body = { sessionId, message: text };
+        const body = { sessionId, message: message };
         if (uid) body.userId = uid;
         const res = await fetch(API + '/stream-with-thinking', {
           method: 'POST',
@@ -949,6 +952,7 @@
         });
         if (!res.ok) {
           appendAssistantChunk('[请求失败: ' + res.status + ']');
+          finalizeAssistantMessage();
           return;
         }
         const reader = res.body.getReader();
@@ -971,6 +975,20 @@
       } catch (e) {
         appendAssistantChunk('[错误: ' + e.message + ']');
         finalizeAssistantMessage();
+      }
+    }
+
+    async function send() {
+      const text = (inputEl.value || '').trim();
+      if (!text) return;
+      if (!getUserId() || !getUserId().trim()) {
+        showUidRequiredModal();
+        return;
+      }
+      inputEl.value = '';
+      sendBtn.disabled = true;
+      try {
+        await postStreamWithThinking(text);
       } finally {
         sendBtn.disabled = false;
       }
@@ -1235,6 +1253,122 @@
       el.className = 'status-line' + (isErr ? ' err' : (msg ? ' ok' : ''));
     }
 
+    async function onCreativeOneShot() {
+      const uid = getUserId();
+      const prompt = (document.getElementById('crPrompt').value || '').trim();
+      const cid = getSelectedCampaignId();
+      const agid = (document.getElementById('crAdGroup').value || '').trim();
+      const persist = document.getElementById('crPersist').checked;
+      const bind = document.getElementById('crBind').checked;
+      const prepend = document.getElementById('crPrepend').checked;
+      const title = (document.getElementById('crTitle').value || '').trim();
+      const contentId = (document.getElementById('crContent').value || '').trim();
+      const placement = (document.getElementById('crPlacement').value || '').trim();
+
+      if (!cid || !agid) {
+        setCrStatus('请选择计划与广告组', true);
+        return;
+      }
+      if (!uid) {
+        setCrStatus('请先填写用户 ID', true);
+        return;
+      }
+      if (persist && !uid) {
+        setCrStatus('保存素材需要填写用户 ID', true);
+        return;
+      }
+
+      const btn = document.getElementById('btnCrOneShot');
+      const prev = document.getElementById('crPreview');
+      prev.innerHTML = '';
+      btn.disabled = true;
+      setCrStatus('技能 Agent 执行中（本页等待结果）…', false);
+
+      const body = {
+        userId: uid,
+        campaignId: cid,
+        adGroupId: agid,
+        persist: persist,
+        bindToAdGroupAfterPersist: bind && persist,
+        bindPrepend: prepend
+      };
+      if (prompt) body.userPrompt = prompt;
+      if (title) body.title = title;
+      if (contentId) body.contentId = contentId;
+      if (placement) body.placement = placement;
+
+      try {
+        const res = await fetch(MATERIAL_AGENT_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(function () { return {}; });
+        if (res.status === 400 || data.status === 'error') {
+          setCrStatus(data.message || ('请求失败 ' + res.status), true);
+          return;
+        }
+        if (data.assistantReply) {
+          const wrap = document.createElement('div');
+          wrap.className = 'panel-meta cr-agent-reply';
+          wrap.style.marginBottom = '10px';
+          wrap.innerHTML = renderMarkdown(data.assistantReply);
+          prev.appendChild(wrap);
+        }
+        if (data.imageUrl) {
+          const img = document.createElement('img');
+          img.src = data.imageUrl;
+          img.alt = '生成结果';
+          prev.appendChild(img);
+        }
+        var msg = '';
+        if (data.status === 'partial') {
+          msg = '部分完成（见上文与预览）';
+        } else {
+          msg = '完成';
+        }
+        if (data.creativeId) msg += ' · 素材 ID: ' + data.creativeId;
+        if (data.message && data.status !== 'ok') msg += ' · ' + data.message;
+
+        if (persist && data.creativeId && bind) {
+          const bres = await fetch(CATALOG_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: uid,
+              campaignId: cid,
+              adGroupId: agid,
+              creativeId: data.creativeId,
+              prepend: prepend
+            })
+          });
+          if (!bres.ok) {
+            const errText = await bres.text();
+            setCrStatus(msg + '；绑定失败: ' + (errText || bres.status), true);
+            return;
+          }
+          msg += ' · 已绑定到广告组 ' + agid;
+        } else if (persist && data.creativeId && !bind) {
+          msg += '（未绑定到组）';
+        }
+        if (data.persistedPath) msg += ' · ' + data.persistedPath;
+        setCrStatus(msg, false);
+
+        if (persist && data.creativeId) {
+          var safe = uid.replace(/[^a-zA-Z0-9_-]/g, '_');
+          var hint = document.createElement('div');
+          hint.className = 'panel-meta';
+          hint.style.marginTop = '8px';
+          hint.innerHTML = '本地文件：<a href="/api/ad-agent/creative/files/' + encodeURIComponent(safe) + '/' + encodeURIComponent(data.creativeId) + '.png" target="_blank" rel="noopener" style="color:#7aa2f7">打开 PNG</a>';
+          prev.appendChild(hint);
+        }
+      } catch (e) {
+        setCrStatus(e.message || '网络错误', true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     async function onCreativeGenerate() {
       const uid = getUserId();
       const prompt = (document.getElementById('crPrompt').value || '').trim();
@@ -1423,6 +1557,7 @@
     });
     document.getElementById('btnLogsRefresh').addEventListener('click', loadLogsPanel);
     document.getElementById('btnCrGenerate').addEventListener('click', onCreativeGenerate);
+    document.getElementById('btnCrOneShot').addEventListener('click', onCreativeOneShot);
     document.getElementById('btnSuggestPrompt').addEventListener('click', onSuggestPrompt);
 
     async function loadCrContents() {

@@ -1,7 +1,13 @@
 # 更新日志
 
+## [0.1.5]（2026-03-28）
+
+- 以 **Spring AI Tool** 的形式集成 **Markdown Skills** 技能：`classpath*:skills/**/*.md` 解析为工具并合并进主 `ChatClient`；
+- **文生图流程由技能 Markdown 驱动**：在 `skills/creative_image_workflow.md` 中写明「先读技能 → `queryBaseData` 对齐计划/广告组 → 由模型整理 `prompt` → `generateImageFromPrompt`」等顺序与参数约定；主对话 system 提示中引导「文生图 / 素材结构化任务」先调该技能工具再按需走通用出图工具，**不在 Java 里编排固定步骤**，改流程时主要改技能文档即可。
+
 ## [0.1.4]（2026-03-27）
 
+- **广告组一键生图**：`POST /api/ad-agent/creative/generate-from-ad-group`；有画面描述则直出图，无则先智能描述再出图；`chat.html` 素材 Tab 增加「一键生成（描述+出图）」。
 - 对话主链路收敛为「流式 + 思考展示」，去掉同步与其它流式对话接口。
 - 编排侧并行拉取长短期记忆；意图结果优先按结构化 JSON 解析，失败再降级。
 - 助手思考内容随会话持久化
