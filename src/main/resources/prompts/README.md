@@ -1,7 +1,7 @@
 # 提示词资源（classpath:prompts/）
 
 所有面向大模型的说明性文案放在此目录，Java 代码仅负责加载与占位符注入，见 `ClasspathPromptLoader`。
-路径常量集中定义在 `com.example.adagent.prompt.PromptResourcePaths`（重命名文件时请同步修改该类）。
+路径常量集中定义在 `com.shanananana.adagent.prompt.PromptResourcePaths`（重命名文件时请同步修改该类）。
 
 | 路径 | 用途 |
 |------|------|

@@ -24,8 +24,13 @@ spring:
     # 加载密钥配置（请将 application-secret.yml.example 复制为 application-secret.yml 并填入 api-key）
     include: secret
 
-  # Spring AI 大模型（默认通义千问，可更换为 OpenAI / Azure / 智谱等）：api-key 由 application-secret.yml 提供
+  # Spring AI：Markdown 技能 + 大模型与文生图（api-key 见 application-secret.yml）
   ai:
+    markdown-skills:
+      enabled: true
+      locations:
+        - classpath*:skills/**/*.md
+      max-body-chars: 12000
     # 启用 DashScope 文生图（ImageModel Bean）；改为 none 可关闭出图能力，不影响对话
     model:
       image: dashscope
@@ -55,4 +60,4 @@ logging:
   level:
     root: INFO
     org.springframework.ai: DEBUG
-    com.example.adagent: INFO
+    com.shanananana.adagent: INFO

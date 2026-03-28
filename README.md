@@ -126,7 +126,7 @@ mvn spring-boot:run
 
 ### 5. 素材生成（对话页 Tab）
 
-在 **http://localhost:8081/chat.html** 左侧切换到 **素材生成**：选择 **广告组**、可选 **内容库** 与 **版位**，可点击 **智能生成描述** 再 **生成图片**；勾选可将结果写入全局素材并绑定到当前广告组。需配置对话用 LLM；文生图另需 `spring.ai.model.image=dashscope` 与 DashScope `api-key`（详见 `application.yml` 与 `application-secret.yml`）。
+在 **http://localhost:8081/chat.html** 左侧切换到 **素材生成**：选择 **广告组**、可选 **内容库** 与 **版位**；**一键走对话 Agent（技能驱动）** 在本 Tab 调用 `POST /api/ad-agent/creative/material-agent-run`，仅传结构化字段；服务端把 `task=material_image` 的 JSON 交给主 `ChatClient`，由模型结合 `chat-system` 与技能 `creative_image_workflow` 调用工具。分步调试仍可用 **智能生成描述**（`suggest-prompt`）、**仅生成图片**（`generate`）。持久化与绑定逻辑与勾选框一致（出图成功后仍可 `bind-creative`）。需配置对话用 LLM；文生图另需 `spring.ai.model.image=dashscope` 与 DashScope `api-key`（详见 `application.yml` 与 `application-secret.yml`）。
 
 ### 6. 可选：独立文生图实验页
 
