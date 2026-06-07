@@ -106,13 +106,13 @@ public class ToolExecutionService {
             List<String> outs = new ArrayList<>();
             buf.append(chunk);
             if (started) {
-                outs.add(chunk);
+                outs.add(ReplySanitizer.stripReasoningTags(chunk));
                 return outs;
             }
             String full = buf.toString();
             ReplySanitizer.PrefixStrip ps = ReplySanitizer.stripToolNarrationPrefixIfComplete(full);
             reportNarrationIfNeeded(ps.removed(), narrationSink);
-            String work = ps.remainder();
+            String work = ReplySanitizer.stripReasoningTags(ps.remainder());
             int h = ReplySanitizer.indexOfFirstMarkdownHeading(work);
             if (h >= 0) {
                 started = true;
@@ -136,7 +136,7 @@ public class ToolExecutionService {
             String full = buf.toString();
             ReplySanitizer.PrefixStrip ps = ReplySanitizer.stripToolNarrationPrefixIfComplete(full);
             reportNarrationIfNeeded(ps.removed(), narrationSink);
-            String work = ps.remainder();
+            String work = ReplySanitizer.stripReasoningTags(ps.remainder());
             int h = ReplySanitizer.indexOfFirstMarkdownHeading(work);
             started = true;
             buf.setLength(0);

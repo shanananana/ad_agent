@@ -19,24 +19,27 @@ import java.util.Base64;
 import java.util.List;
 
 /**
- * <strong>文生图执行服务</strong>：封装 Spring AI {@link ImageModel}（默认通义万相），
- * 将前端描述转为图片并可选落盘到 {@code data/creative/assets/{userId}/}；模型名等见 {@code spring.ai.dashscope.image.options.model}。
+ * <strong>文生图执行服务</strong>：封装 Spring AI {@link ImageModel}（OpenAI 兼容），
+ * 将前端描述转为图片并可选落盘到 {@code data/creative/assets/{userId}/}；见 {@code spring.ai.openai.image.options.model}。
  */
 @Service
 public class CreativeImageService {
 
-    /** 与 DashScope 文档建议的 prompt 上限量级一致，避免过长被拒 */
-    private static final int PROMPT_MAX_LEN = 2000;
+    /** MiniMax 文生图要求 prompt 长度小于 1500 */
+    private static final int PROMPT_MAX_LEN = 1499;
     private static final int TITLE_MAX_LEN = 200;
 
     private final ObjectProvider<ImageModel> imageModelProvider;
+    private final MinimaxImageClient minimaxImageClient;
     private final DataPathConfig dataPathConfig;
     private final GlobalCreativeRepository globalCreativeRepository;
 
     public CreativeImageService(ObjectProvider<ImageModel> imageModelProvider,
+                                  MinimaxImageClient minimaxImageClient,
                                   DataPathConfig dataPathConfig,
                                   GlobalCreativeRepository globalCreativeRepository) {
         this.imageModelProvider = imageModelProvider;
+        this.minimaxImageClient = minimaxImageClient;
         this.dataPathConfig = dataPathConfig;
         this.globalCreativeRepository = globalCreativeRepository;
     }
@@ -68,13 +71,16 @@ public class CreativeImageService {
             return GenerateImageResponse.error("描述过长，请控制在 " + PROMPT_MAX_LEN + " 字以内");
         }
 
-        ImageModel model = imageModelProvider.getIfAvailable();
-        if (model == null) {
-            return GenerateImageResponse.error(
-                    "图片生成未启用：请在 application.yml 设置 spring.ai.model.image=dashscope，并配置 spring.ai.dashscope.api-key");
-        }
-
         try {
+            if (minimaxImageClient.isConfigured()) {
+                MinimaxImageClient.GenerateResult result = minimaxImageClient.generate(trimmed);
+                return GenerateImageResponse.ok(result.url(), result.b64Json());
+            }
+            ImageModel model = imageModelProvider.getIfAvailable();
+            if (model == null) {
+                return GenerateImageResponse.error(
+                        "图片生成未启用：请在 application.yml 设置 spring.ai.model.image=openai，并配置 spring.ai.openai.api-key");
+            }
             var response = model.call(new ImagePrompt(trimmed));
             List<ImageGeneration> results = response.getResults();
             if (results == null || results.isEmpty()) {

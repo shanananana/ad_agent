@@ -1,5 +1,9 @@
 # 更新日志
 
+## [0.1.6]（2026-06-07）
+
+- **LLM 统一 OpenAI 兼容**：移除 `spring-ai-alibaba-starter-dashscope`，对话与可选文生图均通过 `spring-ai-starter-model-openai` + `spring.ai.openai.*` 配置。说明见 `docs/ai_design_doc/llm-provider-config.md`。
+
 ## [0.1.5]（2026-03-28）
 
 - 以 **Spring AI Tool** 的形式集成 **Markdown Skills** 技能：`classpath*:skills/**/*.md` 解析为工具并合并进主 `ChatClient`；

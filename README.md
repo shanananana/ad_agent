@@ -4,9 +4,10 @@
 
 ### 最近更新
 
+- **LLM（OpenAI 兼容）**：`spring.ai.openai.base-url` / `model` / `api-key` 切换任意兼容厂商；文生图可选 `spring.ai.model.image=openai`。
 - **Markdown SKILLS**：支持md文件 装配为 **Spring AI 原生 `ToolCallback`**，与业务 `@Bean` 工具一并注册到主 `ChatClient`。
 - **自动调价助手**：基于定时任务与模型，按最细策略粒度分析投放效果并动态调整出价系数，提升 ROI。
-- **素材与文生图**：对话页 **素材生成** Tab（广告组维度智能描述 + 文生图、绑定素材）；实验页 [文生图（通义万相）](http://localhost:8081/creative-gen.html)（需 `spring.ai.model.image=dashscope` 与 DashScope `api-key`）。
+- **素材与文生图**：对话页 **素材生成** Tab（广告组维度智能描述 + 文生图、绑定素材）；实验页 [文生图](http://localhost:8081/creative-gen.html)（需 `spring.ai.model.image=openai` 与 `spring.ai.openai.api-key`）。
 - 广告投放垂类 Agent：使用自然语言做投放效果查询、投放计划与策略建议，动态修改投放计划。支持多用户隔离、长期记忆与聊天记录持久化（学习项目，数据为本地/测试数据）。
 
 ## 项目介绍
@@ -23,7 +24,7 @@ ad_agent 是一个面向广告投放场景的对话式 Agent，主要能力包�
 - **流式回复与思考过程**：支持 SSE 流式输出，可展开查看意图识别、规划与工具调用过程。
 - **Markdown 技能**：见上；对话与素材 Tab **一键走对话 Agent** 可先调技能工具再调业务工具。
 
-技术栈：Spring Boot、Spring AI（千问 / DashScope）、提示词外置（`ClasspathPromptLoader`）、**skills→`ToolCallback`**、本地 JSON 文件存储。
+技术栈：Spring Boot、Spring AI（OpenAI 兼容）、提示词外置（`ClasspathPromptLoader`）、**skills→`ToolCallback`**、本地 JSON 文件存储。
 
 **关于用户身份**：本仓库为学习项目，**用户仅通过一个 ID（如 10000、u1）标识**，无登录、注册、鉴权等流程；前端将用户 ID 保存在本地并随请求传入，后端按该 ID 隔离数据与记忆。生产环境需接入真实账号体系与权限。
 
@@ -91,14 +92,19 @@ ad_agent 是一个面向广告投放场景的对话式 Agent，主要能力包�
 
 ## 快速开始
 
-### 1. 配置千问 API 密钥（可自行更换为其他模型）
+### 1. 配置大模型 API 密钥
 
-密钥放在单独文件中且已加入 `.gitignore`，不会误提交。当前默认使用阿里云通义千问（DashScope）；**如需使用其他模型**（如 OpenAI、Azure OpenAI、智谱等），只需在 `application.yml` 中改为对应 provider 的配置，并在 `application-secret.yml` 中填写该 provider 的 API Key 即可。
+密钥放在单独文件中且已加入 `.gitignore`，不会误提交。
+
+- **对话 LLM**：OpenAI 兼容 API（`spring.ai.openai.*`），换厂商只改 `base-url`、`model`、`api-key`。
+- **文生图**（可选）：`spring.ai.openai.api-key` + `spring.ai.model.image=openai`。
 
 ```bash
 cp src/main/resources/application-secret.yml.example src/main/resources/application-secret.yml
-# 编辑 application-secret.yml，将 your-dashscope-api-key-here 替换为你的 DashScope API Key（若使用千问）
+# 编辑 application-secret.yml：填写 openai.api-key，并按需改 base-url / model
 ```
+
+示例见 [docs/ai_design_doc/llm-provider-config.md](docs/ai_design_doc/llm-provider-config.md)。
 
 ### 2. 启动服务
 
@@ -130,7 +136,7 @@ mvn spring-boot:run
 
 ### 5. 素材生成（对话页 Tab）
 
-在 **http://localhost:8081/chat.html** 左侧切换到 **素材生成**：选择 **广告组**、可选 **内容库** 与 **版位**；**一键走对话 Agent（技能驱动）** 在本 Tab 调用 `POST /api/ad-agent/creative/material-agent-run`，仅传结构化字段；服务端把 `task=material_image` 的 JSON 交给主 `ChatClient`，由模型结合 `chat-system` 与技能 `creative_image_workflow` 调用工具。分步调试仍可用 **智能生成描述**（`suggest-prompt`）、**仅生成图片**（`generate`）。持久化与绑定逻辑与勾选框一致（出图成功后仍可 `bind-creative`）。需配置对话用 LLM；文生图另需 `spring.ai.model.image=dashscope` 与 DashScope `api-key`（详见 `application.yml` 与 `application-secret.yml`）。
+在 **http://localhost:8081/chat.html** 左侧切换到 **素材生成**：选择 **广告组**、可选 **内容库** 与 **版位**；**一键走对话 Agent（技能驱动）** 在本 Tab 调用 `POST /api/ad-agent/creative/material-agent-run`，仅传结构化字段；服务端把 `task=material_image` 的 JSON 交给主 `ChatClient`，由模型结合 `chat-system` 与技能 `creative_image_workflow` 调用工具。分步调试仍可用 **智能生成描述**（`suggest-prompt`）、**仅生成图片**（`generate`）。持久化与绑定逻辑与勾选框一致（出图成功后仍可 `bind-creative`）。需配置对话用 LLM；文生图另需 `spring.ai.model.image=openai` 与 `spring.ai.openai.api-key`（详见 `application.yml` 与 `application-secret.yml`）。
 
 ### 6. 可选：独立文生图实验页
 
@@ -260,10 +266,10 @@ ad_agent/
 │   ├── config/                          # 配置
 │   │   ├── DataPathConfig.java          # 数据路径（含 data/bid 出价策略文件）
 │   │   ├── ChatClientConfig.java        # Spring AI ChatClient + 工具注册 + biddingChatClient（无工具）
+│   │   ├── LlmProviderStartupLogger.java # 启动日志：当前 spring.ai.model.chat / image
 │   │   ├── BiddingProperties.java       # ad-agent.bidding 配置
 │   │   ├── BiddingSchedulingConfig.java # @EnableScheduling
 │   │   ├── CreativeAssetWebConfig.java  # 创意图片静态资源映射（data/creative/assets）
-│   │   └── DashScopeRestClientTimeoutConfig.java  # DashScope HTTP 超时（含文生图）
 │   ├── controller/
 │   │   ├── AdAgentController.java       # REST：会话、历史、删除、流式（SSE 含思考）
 │   │   ├── BidStrategyController.java   # REST：计划列表/详情/效果、performance-series、performance-sparklines、按计划 B×α、job-log、快照

@@ -14,6 +14,8 @@ public final class ReplySanitizer {
             Pattern.compile("^\\s*为了[\\s\\S]{1,2000}?将调用[\\s\\S]{1,800}?[。.]\\s*");
     private static final Pattern REDUNDANT_HEADING =
             Pattern.compile("(?m)^###\\s*计划详情查询\\s*\\n+");
+    private static final Pattern REDACTED_THINKING =
+            Pattern.compile("(?s)<think>.*?</think>\\s*");
 
     private ReplySanitizer() {
     }
@@ -45,13 +47,21 @@ public final class ReplySanitizer {
         return m.find() ? m.start() : -1;
     }
 
+    /** 去掉 MiniMax 等模型嵌在 content 里的 reasoning 标签。 */
+    public static String stripReasoningTags(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        return REDACTED_THINKING.matcher(text).replaceAll("");
+    }
+
     /** 非流式整段回复：与 UI 流式门控最终效果对齐。 */
     public static String sanitizeFullReply(String raw) {
         if (raw == null || raw.isEmpty()) {
             return raw;
         }
         PrefixStrip ps = stripToolNarrationPrefixIfComplete(raw);
-        String work = ps.remainder();
+        String work = stripReasoningTags(ps.remainder());
         int h = indexOfFirstMarkdownHeading(work);
         return h >= 0 ? work.substring(h) : work;
     }

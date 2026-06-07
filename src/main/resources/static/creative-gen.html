@@ -67,9 +67,9 @@
   </div>
   <h1>创意素材 · 文生图</h1>
   <p class="meta">
-    使用 DashScope <strong>通义万相</strong>（默认 <code>wanx-v1</code>，可在 <code>application.yml</code> 修改）。
+    使用 <strong>OpenAI 兼容</strong> 文生图（默认 <code>dall-e-3</code>，可在 <code>application.yml</code> 修改）。
     返回的图片链接通常 <strong>约 24 小时</strong> 有效，请及时右键保存或下载。
-    需配置 <code>application-secret.yml</code> 中的 <code>spring.ai.dashscope.api-key</code>。
+    需配置 <code>application-secret.yml</code> 中的 <code>spring.ai.openai.api-key</code>，并设置 <code>spring.ai.model.image=openai</code>。
     勾选「保存到全局素材」时需填写 <strong>用户 ID</strong>（与对话页一致），写入 <code>creatives.json</code> 与本地图片；可通过
     <code>POST /api/ad-agent/catalog/bind-creative</code> 绑定到广告组。
   </p>

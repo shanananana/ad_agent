@@ -33,4 +33,4 @@ description: 用户询问「怎么做文生图」「素材出图步骤」「如�
 
 ## 前置条件
 
-- 文生图依赖配置：`spring.ai.model.image=dashscope` 与有效的 DashScope `api-key`。若工具返回未启用类错误，告知用户检查配置，不要重试出图。
+- 文生图依赖 `spring.ai.openai.api-key`；MiniMax 走原生 `/v1/image_generation`（模型默认 `image-01`），OpenAI 兼容厂商走 `spring.ai.model.image=openai`。若工具返回未启用类错误，告知用户检查配置，不要重试出图。

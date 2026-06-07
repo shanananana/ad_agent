@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 public class CreativePromptSuggestService {
 
     private static final Logger logger = LoggerFactory.getLogger(CreativePromptSuggestService.class);
-    private static final int PROMPT_OUT_MAX = 2000;
+    private static final int PROMPT_OUT_MAX = 1499;
     private static final int SNAPSHOT_MAX = 400;
 
     private final PromptTemplate creativeSuggestUserTemplate;
