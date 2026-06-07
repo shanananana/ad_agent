@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 /**
- * 注册带日志的 {@link ToolCallingManager}，供 {@link com.alibaba.cloud.ai.dashscope.chat.DashScopeChatModel} 等注入，
+ * 注册带日志的 {@link ToolCallingManager}，供支持 function calling 的 {@link org.springframework.ai.chat.model.ChatModel} 注入，
  * 在每次工具执行前打印工具名与参数（见 {@link LoggingToolCallingManager}）。
  */
 @Configuration
