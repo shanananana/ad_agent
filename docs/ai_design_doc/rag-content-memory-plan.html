@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ad_agent · Content + Memory RAG 实施方案</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4f;
+      --text: #e6edf3;
+      --muted: #8b9cb3;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --warn: #d29922;
+      --content: #a371f7;
+      --memory: #f778ba;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      margin: 0;
+      padding: 2rem 1.5rem 4rem;
+      max-width: 920px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+    h2 {
+      font-size: 1.25rem;
+      margin-top: 2.5rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 { font-size: 1.05rem; margin-top: 1.5rem; color: var(--accent); }
+    p, li { color: var(--text); }
+    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 2rem; }
+    a { color: var(--accent); }
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+      margin-right: 0.35rem;
+    }
+    .badge-content { background: rgba(163,113,247,0.2); color: var(--content); }
+    .badge-memory { background: rgba(247,120,186,0.2); color: var(--memory); }
+    .badge-qdrant { background: rgba(88,166,255,0.15); color: var(--accent); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 1rem 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.55rem 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--surface); color: var(--muted); font-weight: 600; }
+    tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    pre, code {
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 0.82rem;
+    }
+    pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.15rem;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+    .flow {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .flow-num {
+      flex-shrink: 0;
+      width: 1.6rem;
+      height: 1.6rem;
+      background: var(--accent);
+      color: var(--bg);
+      border-radius: 50%;
+      text-align: center;
+      line-height: 1.6rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    @media (max-width: 640px) { .card-grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.15rem;
+    }
+    .card h4 { margin: 0 0 0.5rem; font-size: 0.95rem; }
+    .before { color: var(--warn); }
+    .after { color: var(--accent2); }
+    .toc {
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin: 1.5rem 0;
+      border: 1px solid var(--border);
+    }
+    .toc ul { margin: 0.5rem 0 0; padding-left: 1.25rem; }
+    .phase {
+      border-left: 3px solid var(--accent);
+      padding-left: 1rem;
+      margin: 1rem 0;
+    }
+    footer { margin-top: 3rem; color: var(--muted); font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+
+<h1>Content + Memory RAG 实施方案</h1>
+<p class="subtitle">
+  项目：<strong>ad_agent</strong> · 向量库：<span class="badge badge-qdrant">Qdrant</span>
+  · 范围：<span class="badge badge-content">content</span> 内容库
+  + <span class="badge badge-memory">memory</span> 长期记忆
+  · 关联文档：<a href="./qdrant-vector-rag.md">qdrant-vector-rag.md</a>
+</p>
+
+<nav class="toc">
+  <strong>目录</strong>
+  <ul>
+    <li><a href="#goal">1. 目标与收益</a></li>
+    <li><a href="#current">2. 现状问题</a></li>
+    <li><a href="#store">3. 向量库记什么</a></li>
+    <li><a href="#arch">4. 架构设计</a></li>
+    <li><a href="#content-rag">5. Content RAG</a></li>
+    <li><a href="#memory-rag">6. Memory RAG</a></li>
+    <li><a href="#sync">7. 索引同步与隐私</a></li>
+    <li><a href="#config">8. 配置与依赖</a></li>
+    <li><a href="#code">9. 代码改动清单</a></li>
+    <li><a href="#phases">10. 实施阶段</a></li>
+    <li><a href="#verify">11. 验收方式</a></li>
+  </ul>
+</nav>
+
+<h2 id="goal">1. 目标与收益</h2>
+<p>RAG（检索增强生成）在本项目中的含义：<strong>先按语义从 Qdrant 取出与当前任务最相关的 content / memory 片段，再拼进 Prompt，让 LLM 在更小、更准的上下文中生成</strong>。</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h4><span class="badge badge-content">content</span> 内容库 RAG</h4>
+    <p>用户未手选 contentId，或素材描述需要「找对推广主题」时，按广告组/版位/用户草稿语义检索 <code>contents.json</code>，只注入 topK 条相关摘要，而不是空提示或全库硬塞。</p>
+  </div>
+  <div class="card">
+    <h4><span class="badge badge-memory">memory</span> 长期记忆 RAG</h4>
+    <p>对话与素材生成时，按<strong>当前用户问题</strong>召回相关偏好（预算习惯、渠道偏好等），替代「按时间取最近 5 条」，减少无关记忆干扰。</p>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr><th>维度</th><th>优化前</th><th>RAG 优化后</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Prompt 体积</td>
+      <td class="before">内容库常为空或仅 1 条；记忆固定最近 N 条</td>
+      <td class="after">只注入与 query 相关的 topK（默认 5），token 更省</td>
+    </tr>
+    <tr>
+      <td>相关性</td>
+      <td class="before">记忆与当前问题可能无关（时间排序）</td>
+      <td class="after">语义相似度排序，问预算召回预算类记忆</td>
+    </tr>
+    <tr>
+      <td>素材质量</td>
+      <td class="before">未选 content 时 LLM 缺少推广语境</td>
+      <td class="after">自动找到「夏夜专辑」「首发冲刺」等匹配条目</td>
+    </tr>
+    <tr>
+      <td>可扩展性</td>
+      <td class="before">内容/记忆增多后无法全量进 Prompt</td>
+      <td class="after">向量检索复杂度与库大小近似对数级，可持续增长</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="current">2. 现状问题（代码对照）</h2>
+
+<h3>Content — <code>CreativePromptSuggestService.buildContentLibrary()</code></h3>
+<pre>// 仅当请求带了 contentId 时取 1 条；否则输出「未指定内容库条目」
+if (StringUtils.hasText(contentId)) {
+    ContentItem c = contentCatalogRepository.findById(userId, contentId);
+    ...
+} else {
+    contentBlock.append("（未指定内容库条目。）\n");
+}</pre>
+<p>问题：用户没在 UI 选内容库时，<strong>推广文案上下文为空</strong>，智能描述缺少业务语义。</p>
+
+<h3>Memory — <code>LongTermMemoryService.retrieveRelevantMemories()</code></h3>
+<pre>// 方法签名有 query、topK，但实现忽略 query
+List&lt;MemoryEntry&gt; entries = repository.getRecent(userId, topK);</pre>
+<p>问题：<code>AdAgentOrchestrator</code> 已把用户输入传给 <code>getLongTermContext(userId, query)</code>，但检索仍是<strong>时间最近</strong>，不是语义最近。</p>
+
+<h2 id="store">3. 向量库记什么（本方案范围）</h2>
+
+<table>
+  <thead>
+    <tr><th>type</th><th>来源文件</th><th>向量化正文</th><th>metadata</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>content</code></td>
+      <td><code>data/base/users/{userId}/contents.json</code></td>
+      <td><code>name + "\n" + summary</code></td>
+      <td><code>user_id</code>, <code>source_id</code>（content UUID）, <code>name</code></td>
+    </tr>
+    <tr>
+      <td><code>memory</code></td>
+      <td><code>data/long_term_memory/{userId}.json</code></td>
+      <td>单条 <code>summary</code></td>
+      <td><code>user_id</code>, <code>source_id</code>（条目索引或 hash）, <code>created_at</code></td>
+    </tr>
+  </tbody>
+</table>
+<p><strong>不写入向量库：</strong> API Key、效果数字、图片二进制、纯 ID。JSON 文件仍作<strong>主数据源与备份</strong>；Qdrant 是检索索引层。</p>
+
+<h2 id="arch">4. 架构设计</h2>
+
+<pre>
+┌─────────────────────────────────────────────────────────────────┐
+│  业务层（改动点）                                                │
+│  CreativePromptSuggestService  │  LongTermMemoryService         │
+│  AdAgentOrchestrator / MemoryService                            │
+└───────────────┬────────────────────────────┬────────────────────┘
+                │                            │
+                ▼                            ▼
+┌───────────────────────────┐  ┌───────────────────────────┐
+│ ContentRagRetriever         │  │ MemoryRagRetriever        │
+│ · retrieve(userId, query)   │  │ · retrieve(userId, query) │
+└───────────────┬─────────────┘  └─────────────┬─────────────┘
+                │                            │
+                └────────────┬───────────────┘
+                             ▼
+              ┌──────────────────────────────┐
+              │ RagVectorStoreService        │
+              │ · similaritySearch + filter  │
+              │ · add / deleteByUserAndType  │
+              └──────────────┬───────────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         ▼                   ▼                   ▼
+  EmbeddingModel      Qdrant VectorStore    JSON 主数据
+  (OpenAI 兼容)       collection:            contents.json
+                      ad_agent_rag           long_term_memory/*.json
+</pre>
+
+<p>新增门面 <code>RagIndexService</code>：负责「JSON → Document → vectorStore.add」与按用户全量重建索引。</p>
+
+<h2 id="content-rag">5. Content RAG 如何做</h2>
+
+<div class="flow">
+  <div class="flow-step">
+    <span class="flow-num">1</span>
+    <div><strong>索引（写入 Qdrant）</strong><br>
+      应用启动或 <code>contents.json</code> 保存后：读取该用户全部 <code>ContentItem</code>，每条生成 Document，<code>type=content</code>。</div>
+  </div>
+  <div class="flow-step">
+    <span class="flow-num">2</span>
+    <div><strong>构建 query</strong><br>
+      <code>suggest-prompt</code> 时拼接：版位说明 + 用户草稿 + 广告组/计划上下文（若有）作为检索 query；若用户已选 <code>contentId</code>，仍优先精确命中该条，RAG 作补充。</div>
+  </div>
+  <div class="flow-step">
+    <span class="flow-num">3</span>
+    <div><strong>检索</strong><br>
+      <code>filter: user_id == '{userId}' &amp;&amp; type == 'content'</code>，topK=5，similarityThreshold≥0.65。</div>
+  </div>
+  <div class="flow-step">
+    <span class="flow-num">4</span>
+    <div><strong>注入 Prompt</strong><br>
+      替换 <code>buildContentLibrary()</code> 输出为「相关推广内容（语义检索）」区块，格式与现有一致，便于 Prompt 模板无感切换。</div>
+  </div>
+</div>
+
+<p><strong>优化点：</strong> 素材 Tab「智能生成描述」在未选内容库时也能自动带上「夏夜氛围」「首发冲刺」等与 query 相关的推广摘要，画面描述更贴业务。</p>
+
+<h2 id="memory-rag">6. Memory RAG 如何做</h2>
+
+<div class="flow">
+  <div class="flow-step">
+    <span class="flow-num">1</span>
+    <div><strong>写入双通道</strong><br>
+      现有 <code>LongTermMemoryRepository.append()</code> 成功后，同步 <code>vectorStore.add(memory Document)</code>。JSON 与向量<strong>双写</strong>，JSON 便于审计与导出。</div>
+  </div>
+  <div class="flow-step">
+    <span class="flow-num">2</span>
+    <div><strong>检索改造</strong><br>
+      <code>retrieveRelevantMemories(userId, query, topK)</code>：对 <code>query</code> 做 embedding 检索，filter <code>type == 'memory'</code>。<br>
+      <code>ad-agent.rag.enabled=false</code> 时回退 <code>getRecent()</code>。</div>
+  </div>
+  <div class="flow-step">
+    <span class="flow-num">3</span>
+    <div><strong>注入点（不变）</strong><br>
+      <code>MemoryService.getLongTermContext()</code> → <code>AdAgentOrchestrator.buildEnhancedPrompt()</code> 已在每轮对话注入；素材 Agent 若需用户偏好可同样调用。</div>
+  </div>
+</div>
+
+<p><strong>优化点：</strong> 用户先聊「我预算很紧」再聊「帮我写开屏文案」，第二条会召回预算相关记忆，而不是无关的「上次喜欢信息流」类摘要。</p>
+
+<h2 id="sync">7. 索引同步与隐私</h2>
+
+<table>
+  <thead>
+    <tr><th>事件</th><th>动作</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>应用启动（可选）</td><td>对配置了索引的用户或全量用户执行 content 全量 reindex（数据量小可接受）</td></tr>
+    <tr><td><code>ContentCatalogRepository.save()</code></td><td><code>reindexContent(userId)</code>：删该用户 type=content 向量后重建</td></tr>
+    <tr><td><code>LongTermMemoryRepository.append()</code></td><td>追加单条 memory 向量</td></tr>
+    <tr><td><code>UserPrivacyTools.clearUserLongTermMemory</code></td><td>删 JSON + <code>delete filter user_id &amp;&amp; type==memory</code></td></tr>
+    <tr><td><code>INTENT_CLEAR_ALL_USER_MEMORY</code></td><td>长期记忆向量一并清除（聊天本方案暂不入向量库）</td></tr>
+  </tbody>
+</table>
+
+<h2 id="config">8. 配置与依赖</h2>
+
+<p>启动 Qdrant：<code>./scripts/qdrant/start-qdrant.sh</code></p>
+
+<pre># pom.xml 新增
+spring-ai-starter-vector-store-qdrant
+spring-ai-rag          # 可选，对话链路后续用 Advisor
+
+# application.yml
+ad-agent:
+  rag:
+    enabled: true
+    top-k: 5
+    similarity-threshold: 0.65
+
+spring:
+  ai:
+    model:
+      embedding: openai
+    openai:
+      embedding:
+        options:
+          model: text-embedding-3-small   # 与 chat 模型分开配置
+    vectorstore:
+      qdrant:
+        host: localhost
+        port: 6334
+        collection-name: ad_agent_rag
+        initialize-schema: true</pre>
+
+<p>API Key 仅写在 <code>application-secret.yml</code>（已 gitignore）。Embedding 与 Chat 可用同一 Key，但<strong>模型名必须分开</strong>；换 embedding 模型需重建 collection。</p>
+
+<h2 id="code">9. 代码改动清单（计划）</h2>
+
+<table>
+  <thead>
+    <tr><th>文件（新建/修改）</th><th>职责</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>rag/RagProperties.java</code></td><td>enabled、topK、threshold</td></tr>
+    <tr><td><code>rag/RagVectorStoreService.java</code></td><td>封装 search / add / deleteByFilter</td></tr>
+    <tr><td><code>rag/ContentRagIndexService.java</code></td><td>contents.json → 向量索引</td></tr>
+    <tr><td><code>rag/MemoryRagIndexService.java</code></td><td>memory 单条写入 / 全量重建</td></tr>
+    <tr><td><code>rag/ContentRagRetriever.java</code></td><td>格式化检索结果为 Prompt 文本块</td></tr>
+    <tr><td><code>CreativePromptSuggestService.java</code></td><td><code>buildContentLibrary</code> 接入 RAG</td></tr>
+    <tr><td><code>LongTermMemoryService.java</code></td><td><code>retrieveRelevantMemories</code> 用语义检索</td></tr>
+    <tr><td><code>LongTermMemoryRepository.append</code></td><td>追加后调 MemoryRagIndexService</td></tr>
+    <tr><td><code>ContentCatalogRepository.save</code></td><td>保存后 reindex content</td></tr>
+    <tr><td><code>UserPrivacyTools</code></td><td>清长期记忆时删 Qdrant memory 向量</td></tr>
+    <tr><td><code>pom.xml</code> / <code>application.yml</code></td><td>依赖与配置</td></tr>
+  </tbody>
+</table>
+
+<h2 id="phases">10. 实施阶段</h2>
+
+<div class="phase">
+  <strong>阶段 A — 基础设施（约 1 PR）</strong>
+  <ul>
+    <li>Qdrant 依赖、配置、<code>RagVectorStoreService</code></li>
+    <li>启动时检测 Qdrant；<code>rag.enabled=false</code> 时不连库、行为与现网一致</li>
+    <li>单元测试：Mock <code>VectorStore</code> / <code>EmbeddingModel</code></li>
+  </ul>
+</div>
+
+<div class="phase">
+  <strong>阶段 B — Memory RAG（约 1 PR）</strong>
+  <ul>
+    <li>改造 <code>retrieveRelevantMemories</code> + append 双写 + 隐私删除</li>
+    <li>对话链路立即受益（编排器已注入长期记忆）</li>
+  </ul>
+</div>
+
+<div class="phase">
+  <strong>阶段 C — Content RAG（约 1 PR）</strong>
+  <ul>
+    <li>Content 索引与 <code>suggest-prompt</code> 接入</li>
+    <li>可选：素材 Agent <code>MaterialCreativeAgentService</code> 共用 <code>ContentRagRetriever</code></li>
+  </ul>
+</div>
+
+<h2 id="verify">11. 验收方式</h2>
+
+<table>
+  <thead>
+    <tr><th>场景</th><th>操作</th><th>预期</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Content RAG</td>
+      <td>用户有多条 content；suggest 时不选 contentId，草稿写「夏夜氛围开屏」</td>
+      <td>Prompt 中出现「夏夜」相关 content 摘要；Qdrant Dashboard 可见 type=content 点</td>
+    </tr>
+    <tr>
+      <td>Memory RAG</td>
+      <td>先对话写入「预算保守」记忆，再问「写文案时注意什么」</td>
+      <td>长期记忆块出现预算相关摘要，而非无关最近条</td>
+    </tr>
+    <tr>
+      <td>降级</td>
+      <td><code>ad-agent.rag.enabled=false</code> 或停 Qdrant</td>
+      <td>应用可启动；content 回退空/单条逻辑；memory 回退 getRecent</td>
+    </tr>
+    <tr>
+      <td>隐私</td>
+      <td>「清除长期记忆」</td>
+      <td>JSON 删除且 Qdrant 该用户 memory 向量清空</td>
+    </tr>
+  </tbody>
+</table>
+
+<footer>
+  文档版本：2026-06-07 · 维护位置：<code>docs/ai_design_doc/rag-content-memory-plan.html</code>
+  · 向量库总览：<a href="./qdrant-vector-rag.md">qdrant-vector-rag.md</a>
+</footer>
+
+</body>
+</html>

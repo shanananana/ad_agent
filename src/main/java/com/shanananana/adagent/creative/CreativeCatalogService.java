@@ -2,6 +2,7 @@ package com.shanananana.adagent.creative;
 
 import com.shanananana.adagent.data.AdDataRepository;
 import com.shanananana.adagent.data.ContentCatalogRepository;
+import com.shanananana.adagent.rag.ContentRagIndexService;
 import com.shanananana.adagent.data.GlobalCreativeRepository;
 import com.shanananana.adagent.data.dto.CampaignBase;
 import com.shanananana.adagent.data.dto.ContentItem;
@@ -25,13 +26,16 @@ public class CreativeCatalogService {
     private final AdDataRepository adDataRepository;
     private final GlobalCreativeRepository globalCreativeRepository;
     private final ContentCatalogRepository contentCatalogRepository;
+    private final ContentRagIndexService contentRagIndexService;
 
     public CreativeCatalogService(AdDataRepository adDataRepository,
                                   GlobalCreativeRepository globalCreativeRepository,
-                                  ContentCatalogRepository contentCatalogRepository) {
+                                  ContentCatalogRepository contentCatalogRepository,
+                                  ContentRagIndexService contentRagIndexService) {
         this.adDataRepository = adDataRepository;
         this.globalCreativeRepository = globalCreativeRepository;
         this.contentCatalogRepository = contentCatalogRepository;
+        this.contentRagIndexService = contentRagIndexService;
     }
 
     /**
@@ -72,6 +76,7 @@ public class CreativeCatalogService {
         item.setName(name != null ? name.trim() : "");
         item.setSummary(summary != null ? summary.trim() : "");
         contentCatalogRepository.upsert(userId, item);
+        contentRagIndexService.reindexUser(userId);
         return item;
     }
 

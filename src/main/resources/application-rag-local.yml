@@ -1,0 +1,26 @@
+# 本地 ONNX Embedding + Qdrant（无需外网 Embedding API）
+# 启动: --spring.profiles.active=rag-local
+ad-agent:
+  rag:
+    enabled: true
+    diagnostics: true
+    reindex-on-startup: false
+
+spring:
+  ai:
+    model:
+      chat: openai
+      embedding: transformers
+    embedding:
+      transformer:
+        cache:
+          directory: ${user.home}/.cache/ad-agent/onnx-models
+        # Xenova ONNX（384 维）；首次启动会下载到 cache 目录
+        # 中文模型见 scripts/embedding/download-bge-small-zh.sh
+        onnx:
+          model-uri: https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx
+        tokenizer:
+          uri: https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/tokenizer.json
+    vectorstore:
+      qdrant:
+        collection-name: ad_agent_rag_local

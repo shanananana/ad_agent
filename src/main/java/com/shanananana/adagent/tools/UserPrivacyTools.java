@@ -1,6 +1,7 @@
 package com.shanananana.adagent.tools;
 
 import com.shanananana.adagent.data.LongTermMemoryRepository;
+import com.shanananana.adagent.rag.MemoryRagIndexService;
 import com.shanananana.adagent.service.AdChatSessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,11 +20,14 @@ public class UserPrivacyTools {
 
     private static final Logger logger = LoggerFactory.getLogger(UserPrivacyTools.class);
     private final LongTermMemoryRepository longTermMemoryRepository;
+    private final MemoryRagIndexService memoryRagIndexService;
     private final AdChatSessionService adChatSessionService;
 
     public UserPrivacyTools(LongTermMemoryRepository longTermMemoryRepository,
+                            MemoryRagIndexService memoryRagIndexService,
                             @Lazy AdChatSessionService adChatSessionService) {
         this.longTermMemoryRepository = longTermMemoryRepository;
+        this.memoryRagIndexService = memoryRagIndexService;
         this.adChatSessionService = adChatSessionService;
     }
 
@@ -34,6 +38,7 @@ public class UserPrivacyTools {
         }
         try {
             longTermMemoryRepository.deleteForUser(userId.trim());
+            memoryRagIndexService.deleteVectorsForUser(userId.trim());
             return "已清除该用户的长期记忆（偏好/习惯摘要文件已删除）。本轮起将不再注入历史偏好，直至产生新的记忆。";
         } catch (IOException e) {
             logger.error("clearUserLongTermMemory 失败 userId={}", userId, e);

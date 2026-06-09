@@ -2,6 +2,7 @@ package com.shanananana.adagent;
 
 import com.shanananana.adagent.config.BiddingProperties;
 import com.shanananana.adagent.config.DataPathConfig;
+import com.shanananana.adagent.rag.RagProperties;
 import com.shanananana.adagent.skills.MarkdownSkillsProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -13,7 +14,12 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
  * {@link BiddingProperties}（定时调价任务参数）。</p>
  */
 @SpringBootApplication
-@EnableConfigurationProperties({DataPathConfig.class, BiddingProperties.class, MarkdownSkillsProperties.class})
+@EnableConfigurationProperties({
+        DataPathConfig.class,
+        BiddingProperties.class,
+        MarkdownSkillsProperties.class,
+        RagProperties.class
+})
 public class AdAgentApplication {
 
     public static void main(String[] args) {

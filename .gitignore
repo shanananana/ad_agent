@@ -1,6 +1,12 @@
 # 本地待办，不提交
 todolist.md
 
+# 本地验证记录、手工测试脚本（不提交）
+local-verify/
+
+# 本地下载的 ONNX embedding 模型（体积大）
+local-models/
+
 # 千问等 API 密钥，避免误提交
 **/application-secret.yml
 **/application-secret.properties

@@ -1,0 +1,17 @@
+# 云端 Embedding API + Qdrant（需可用 embedding 端点）
+# 推荐本地开发改用 profile rag-local（ONNX，无需 Embedding API）
+ad-agent:
+  rag:
+    enabled: true
+    diagnostics: true
+    reindex-on-startup: true
+
+spring:
+  ai:
+    model:
+      chat: openai
+      embedding: openai
+    openai:
+      embedding:
+        options:
+          model: text-embedding-3-small
