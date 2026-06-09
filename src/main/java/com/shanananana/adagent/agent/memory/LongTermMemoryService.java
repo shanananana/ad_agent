@@ -4,6 +4,10 @@ import com.shanananana.adagent.data.LongTermMemoryRepository;
 import com.shanananana.adagent.data.dto.LongTermMemoryFile;
 import com.shanananana.adagent.prompt.ClasspathPromptLoader;
 import com.shanananana.adagent.prompt.PromptResourcePaths;
+import com.shanananana.adagent.rag.MemoryRagIndexService;
+import com.shanananana.adagent.rag.RagTypes;
+import com.shanananana.adagent.rag.RagVectorStoreService;
+import org.springframework.ai.document.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -28,14 +32,20 @@ public class LongTermMemoryService {
     private final LongTermMemoryRepository repository;
     private final ChatClient chatClient;
     private final ClasspathPromptLoader classpathPromptLoader;
+    private final RagVectorStoreService ragVectorStoreService;
+    private final MemoryRagIndexService memoryRagIndexService;
 
     public LongTermMemoryService(
             LongTermMemoryRepository repository,
             @Qualifier("noToolChatClient") ChatClient noToolChatClient,
-            ClasspathPromptLoader classpathPromptLoader) {
+            ClasspathPromptLoader classpathPromptLoader,
+            RagVectorStoreService ragVectorStoreService,
+            MemoryRagIndexService memoryRagIndexService) {
         this.repository = repository;
         this.chatClient = noToolChatClient;
         this.classpathPromptLoader = classpathPromptLoader;
+        this.ragVectorStoreService = ragVectorStoreService;
+        this.memoryRagIndexService = memoryRagIndexService;
     }
 
     /**
@@ -44,6 +54,15 @@ public class LongTermMemoryService {
     public List<MemorySummary> retrieveRelevantMemories(String userId, String query, int topK) {
         if (userId == null || userId.isBlank()) {
             return List.of();
+        }
+        if (ragVectorStoreService.isActive() && query != null && !query.isBlank()) {
+            List<Document> hits = ragVectorStoreService.search(query.trim(), userId.trim(), RagTypes.TYPE_MEMORY);
+            if (!hits.isEmpty()) {
+                return hits.stream()
+                        .limit(topK)
+                        .map(d -> new MemorySummary(null, d.getText(), 0))
+                        .collect(Collectors.toList());
+            }
         }
         List<LongTermMemoryFile.MemoryEntry> entries = repository.getRecent(userId, topK);
         return entries.stream()
@@ -88,6 +107,7 @@ public class LongTermMemoryService {
                     return;
                 }
                 repository.append(userId, summaryToSave);
+                memoryRagIndexService.indexEntry(userId, summaryToSave, java.time.Instant.now().toString());
                 logger.info("【长期记忆】已写入 userId={}, 摘要长度={}", userId, summaryToSave.length());
             } else {
                 logger.debug("【长期记忆】无需写入 userId={}, 判断: {}", userId, judgment.substring(0, Math.min(100, judgment.length())));

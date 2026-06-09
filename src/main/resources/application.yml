@@ -15,6 +15,13 @@ ad-agent:
     alpha-max: 1.5
     max-relative-change: 0.2
     job-log-max-entries: 30
+  # RAG（Qdrant）：默认关闭，本地验证用 profile rag 或 local-verify 脚本
+  rag:
+    enabled: false
+    top-k: 5
+    similarity-threshold: 0.55
+    diagnostics: false
+    reindex-on-startup: false
 
 spring:
   application:
@@ -22,6 +29,10 @@ spring:
 
   profiles:
     include: secret
+
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.vectorstore.qdrant.autoconfigure.QdrantVectorStoreAutoConfiguration
 
   ai:
     markdown-skills:
@@ -32,6 +43,8 @@ spring:
     model:
       chat: openai
       image: openai
+      # 默认不启用 Embedding；RAG 本地用 profile rag-local，云端用 profile rag
+      embedding: none
     openai:
       # 勿带 /v1 后缀，Spring AI 会自动拼接 /v1/chat/completions
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
@@ -46,6 +59,12 @@ spring:
     tool:
       enabled: true
       internal-tool-execution-enabled: true
+    vectorstore:
+      qdrant:
+        host: localhost
+        port: 6334
+        collection-name: ad_agent_rag
+        initialize-schema: true
 
 server:
   port: 8081

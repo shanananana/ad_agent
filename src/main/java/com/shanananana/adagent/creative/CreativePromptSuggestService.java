@@ -2,14 +2,13 @@ package com.shanananana.adagent.creative;
 
 import com.shanananana.adagent.creative.dto.SuggestPromptRequest;
 import com.shanananana.adagent.creative.dto.SuggestPromptResponse;
-import com.shanananana.adagent.data.ContentCatalogRepository;
 import com.shanananana.adagent.data.GlobalCreativeRepository;
 import com.shanananana.adagent.data.PerformanceDataRepository;
-import com.shanananana.adagent.data.dto.ContentItem;
 import com.shanananana.adagent.data.dto.CreativePerformanceScore;
 import com.shanananana.adagent.data.dto.GlobalCreative;
 import com.shanananana.adagent.prompt.ClasspathPromptLoader;
 import com.shanananana.adagent.prompt.PromptResourcePaths;
+import com.shanananana.adagent.rag.ContentRagRetriever;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -38,21 +37,21 @@ public class CreativePromptSuggestService {
     private final ChatClient creativePromptChatClient;
     private final PerformanceDataRepository performanceDataRepository;
     private final GlobalCreativeRepository globalCreativeRepository;
-    private final ContentCatalogRepository contentCatalogRepository;
     private final CreativePlacementPromptSpec creativePlacementPromptSpec;
+    private final ContentRagRetriever contentRagRetriever;
 
     public CreativePromptSuggestService(
             @Qualifier("creativePromptChatClient") ChatClient creativePromptChatClient,
             ClasspathPromptLoader classpathPromptLoader,
             PerformanceDataRepository performanceDataRepository,
             GlobalCreativeRepository globalCreativeRepository,
-            ContentCatalogRepository contentCatalogRepository,
-            CreativePlacementPromptSpec creativePlacementPromptSpec) {
+            CreativePlacementPromptSpec creativePlacementPromptSpec,
+            ContentRagRetriever contentRagRetriever) {
         this.creativePromptChatClient = creativePromptChatClient;
         this.performanceDataRepository = performanceDataRepository;
         this.globalCreativeRepository = globalCreativeRepository;
-        this.contentCatalogRepository = contentCatalogRepository;
         this.creativePlacementPromptSpec = creativePlacementPromptSpec;
+        this.contentRagRetriever = contentRagRetriever;
         this.creativeSuggestUserTemplate = classpathPromptLoader.loadTemplate(PromptResourcePaths.CREATIVE_SUGGEST_USER);
     }
 
@@ -74,7 +73,12 @@ public class CreativePromptSuggestService {
         var creativeMap = globalCreativeRepository.findByIds(userId, refIds);
 
         String performanceReference = buildPerformanceReference(ranked, creativeMap, days);
-        String contentLibrary = buildContentLibrary(userId, req.getContentId());
+        String placementSpecEarly = creativePlacementPromptSpec.build(req.getPlacement());
+        String userNotesEarly = StringUtils.hasText(req.getCurrentDescription())
+                ? req.getCurrentDescription().trim()
+                : "";
+        String ragQuery = buildContentRagQuery(placementSpecEarly, userNotesEarly);
+        String contentLibrary = contentRagRetriever.formatForPrompt(userId, ragQuery, req.getContentId());
         String userNotes = StringUtils.hasText(req.getCurrentDescription())
                 ? req.getCurrentDescription().trim()
                 : "（用户未提供草稿。）";
@@ -142,20 +146,15 @@ public class CreativePromptSuggestService {
         return perfBlock.toString();
     }
 
-    private String buildContentLibrary(String userId, String contentId) {
-        StringBuilder contentBlock = new StringBuilder();
-        if (StringUtils.hasText(contentId)) {
-            ContentItem c = contentCatalogRepository.findById(userId, contentId.trim()).orElse(null);
-            if (c != null) {
-                contentBlock.append("名称: ").append(nullToEmpty(c.getName())).append("\n");
-                contentBlock.append("摘要: ").append(nullToEmpty(c.getSummary())).append("\n");
-            } else {
-                contentBlock.append("（未找到 contentId=").append(contentId).append(" 的内容条目）\n");
-            }
-        } else {
-            contentBlock.append("（未指定内容库条目。）\n");
+    private String buildContentRagQuery(String placementSpec, String userNotes) {
+        StringBuilder q = new StringBuilder();
+        if (StringUtils.hasText(placementSpec)) {
+            q.append(placementSpec.trim()).append("\n");
         }
-        return contentBlock.toString();
+        if (StringUtils.hasText(userNotes)) {
+            q.append(userNotes.trim());
+        }
+        return q.toString().trim();
     }
 
     private static String nullToEmpty(String s) {

@@ -7,6 +7,7 @@ import com.shanananana.adagent.agent.perception.IntentRecognitionService;
 import com.shanananana.adagent.agent.planning.PlanningService;
 import com.shanananana.adagent.controller.StreamEvent;
 import com.shanananana.adagent.data.LongTermMemoryRepository;
+import com.shanananana.adagent.rag.MemoryRagIndexService;
 import com.shanananana.adagent.prompt.ClasspathPromptLoader;
 import com.shanananana.adagent.prompt.PromptResourcePaths;
 import com.shanananana.adagent.service.AdChatSessionService;
@@ -38,6 +39,7 @@ public class AdAgentOrchestrator {
     private final MemoryService memoryService;
     private final ToolExecutionService toolExecutionService;
     private final LongTermMemoryRepository longTermMemoryRepository;
+    private final MemoryRagIndexService memoryRagIndexService;
     private final AdChatSessionService adChatSessionService;
     private final ClasspathPromptLoader classpathPromptLoader;
 
@@ -48,6 +50,7 @@ public class AdAgentOrchestrator {
             MemoryService memoryService,
             ToolExecutionService toolExecutionService,
             LongTermMemoryRepository longTermMemoryRepository,
+            MemoryRagIndexService memoryRagIndexService,
             ClasspathPromptLoader classpathPromptLoader,
             @Lazy AdChatSessionService adChatSessionService) {
         this.intentRecognitionService = intentRecognitionService;
@@ -56,6 +59,7 @@ public class AdAgentOrchestrator {
         this.memoryService = memoryService;
         this.toolExecutionService = toolExecutionService;
         this.longTermMemoryRepository = longTermMemoryRepository;
+        this.memoryRagIndexService = memoryRagIndexService;
         this.classpathPromptLoader = classpathPromptLoader;
         this.adChatSessionService = adChatSessionService;
     }
@@ -191,6 +195,7 @@ public class AdAgentOrchestrator {
         try {
             if (clearLt) {
                 longTermMemoryRepository.deleteForUser(uid);
+                memoryRagIndexService.deleteVectorsForUser(uid);
             }
             if (clearChat) {
                 adChatSessionService.deleteAllChatHistoryForUser(uid, sessionId);

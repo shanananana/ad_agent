@@ -2,6 +2,8 @@
 
 对话与文生图统一使用 Spring AI **OpenAI 兼容**客户端，只改配置即可切换厂商，无需 Alibaba / DashScope 依赖。
 
+向量库与 RAG（Qdrant、Embedding、索引约定）见 [qdrant-vector-rag.md](./qdrant-vector-rag.md)。
+
 ## 配置项
 
 | 用途 | 属性 |
